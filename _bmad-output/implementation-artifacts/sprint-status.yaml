@@ -43,8 +43,8 @@ development_status:
   # Epic 1: Application Foundation & Data Input
   epic-1: in-progress
   1-1-dependency-cleanup-streamlit-upgrade: review
-  1-2-three-layer-module-structure-pipelinestate-session-schema: backlog
-  1-3-four-panel-layout-csv-upload-with-editable-data-table: backlog
+  1-2-three-layer-module-structure-pipelinestate-session-schema: review
+  1-3-four-panel-layout-csv-upload-with-editable-data-table: review
   epic-1-retrospective: optional
 
   # Epic 2: Natural Language Request & Plan Review

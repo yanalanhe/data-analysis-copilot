@@ -190,6 +190,11 @@ Create stories
 /bmad-bmm-create-story
 ```
 
+Implement story
+```
+/bmad-bmm-dev-story
+```
+
 
 
 

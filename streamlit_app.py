@@ -54,6 +54,10 @@ if langsmith_client is not None:
     except Exception:
         pass
 
+# Initialize new-pipeline session state keys (idempotent — runs every rerun)
+from utils.session import init_session_state
+init_session_state()
+
 if "openai_model" not in st.session_state:
     st.session_state["openai_model"] = "gpt-4o"
 
@@ -89,6 +93,52 @@ def handle_table_change():
         st.session_state["chat_history"].append(
             {"role": "bot", "content": "A change was made to the table."}
         )
+
+
+def _on_csv_upload(uploaded_files) -> None:
+    """Handle CSV file upload: populate uploaded_dfs, write temp CSV, update df.
+
+    Stores each file as a DataFrame in st.session_state["uploaded_dfs"] keyed by filename.
+    Writes a combined temp CSV and sets st.session_state["csv_temp_path"].
+    Updates st.session_state.df for backward compat with run_tests() and existing pipeline.
+    Calls detect_large_data() hook (Story 4.1 will implement real threshold logic).
+    """
+    from utils.large_data import detect_large_data
+
+    # Load each uploaded file into a DataFrame
+    new_dfs = {}
+    for f in uploaded_files:
+        new_dfs[f.name] = pd.read_csv(f)
+
+    st.session_state["uploaded_dfs"] = new_dfs
+
+    # Combine all DataFrames into a single dataset
+    if len(new_dfs) == 1:
+        combined_df = list(new_dfs.values())[0]
+    else:
+        combined_df = pd.concat(list(new_dfs.values()), ignore_index=True)
+
+    # Keep st.session_state.df in sync for backward compat
+    st.session_state.df = combined_df
+
+    # Clean up previous temp file if it exists
+    old_path = st.session_state.get("csv_temp_path")
+    if old_path and os.path.exists(old_path):
+        try:
+            os.remove(old_path)
+        except OSError:
+            pass  # Safe to ignore — temp file may already be gone
+
+    # Write combined DataFrame to a persistent temp file
+    with tempfile.NamedTemporaryFile(
+        delete=False, suffix=".csv", mode="w", encoding="utf-8"
+    ) as tmp:
+        combined_df.to_csv(tmp, index=False)
+        st.session_state["csv_temp_path"] = tmp.name
+
+    # Hook for large data detection — stub returns False until Story 4.1
+    combined_size_mb = sum(f.size for f in uploaded_files) / 1_048_576
+    detect_large_data(len(combined_df), combined_size_mb)
 
 
 # ─────────────────────────────────────────────
@@ -678,7 +728,9 @@ with st.container():
 
     with col2row1:
         with st.container(height=ROW_HIGHT):
-            col2row1_plan_tab, col2row1_code_tab = st.tabs(["Plan", "Code"])
+            col2row1_plan_tab, col2row1_code_tab, col2row1_template_tab = st.tabs(
+                ["Plan", "Code", "Template"]
+            )
 
             with col2row1_plan_tab:
                 st.write(st.session_state.plan)
@@ -694,15 +746,44 @@ with st.container():
                 if reporting_code:
                     st.session_state.code = reporting_code
 
+            with col2row1_template_tab:
+                saved = st.session_state.get("saved_templates", [])
+                if not saved:
+                    st.info(
+                        "No saved templates yet. Run an analysis and save it from the Plan tab."
+                    )
+                else:
+                    for tmpl in saved:
+                        st.write(f"**{tmpl.get('name', 'Unnamed')}**")
+                        if st.button(
+                            "Apply", key=f"apply_tmpl_{tmpl.get('name', '')}"
+                        ):
+                            st.session_state["active_template"] = tmpl
+                            st.session_state["active_tab"] = "plan"
+                            st.rerun()
+
     col1row2, col2row2 = st.columns(2)
 
     with col1row2:
         with st.container(height=ROW_HIGHT):
             st.write("### User Data Set")
-            if "df" not in st.session_state:
-                st.session_state.df = get_dataframe()
+
+            uploaded_files = st.file_uploader(
+                "Upload CSV files",
+                type=["csv"],
+                accept_multiple_files=True,
+                key="csv_uploader",
+            )
+
+            if uploaded_files:
+                _on_csv_upload(uploaded_files)
+            elif not st.session_state.get("uploaded_dfs"):
+                # No CSV uploaded yet — load the sample dataset as a starting point
+                if "df" not in st.session_state:
+                    st.session_state.df = get_dataframe()
+
             edited_df = st.data_editor(
-                st.session_state.df,
+                st.session_state.df if "df" in st.session_state else get_dataframe(),
                 key="editable_table",
                 num_rows="dynamic",
                 on_change=handle_table_change,

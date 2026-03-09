@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -c \"from pipeline.state import PipelineState; import inspect; fields = list\\(PipelineState.__annotations__.keys\\(\\)\\); print\\(''OK - fields:'', len\\(fields\\)\\); print\\(fields\\)\")",
+      "Bash(.venv/Scripts/pip.exe install -r requirements.txt --quiet)",
+      "Bash(.venv/Scripts/python.exe -c \"import matplotlib; print\\(''matplotlib'', matplotlib.__version__\\)\")",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/test_story_1_2.py -v)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)"
+    ]
+  }
+}
