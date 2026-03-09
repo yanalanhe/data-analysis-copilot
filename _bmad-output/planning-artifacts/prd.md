@@ -1,294 +1,331 @@
 ---
-stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-03-success', 'step-04-journeys', 'step-05-domain', 'step-06-innovation', 'step-07-project-type', 'step-08-scoping', 'step-09-functional', 'step-10-nonfunctional', 'step-11-polish']
-inputDocuments:
-  - _bmad-output/planning-artifacts/product-brief-data-analysis-copilot-2026-02-07.md
-  - _bmad-output/brainstorming/brainstorming-session-2026-02-07.md
+stepsCompleted: [step-01-init, step-02-discovery, step-02b-vision, step-02c-executive-summary, step-03-success, step-04-journeys, step-05-domain, step-06-innovation, step-07-project-type, step-08-scoping, step-09-functional, step-10-nonfunctional, step-11-polish]
+inputDocuments: ['_bmad-output/planning-artifacts/product-brief-data-analysis-copilot-2026-03-05.md']
 workflowType: 'prd'
 briefCount: 1
 researchCount: 0
-brainstormingCount: 1
+brainstormingCount: 0
 projectDocsCount: 0
 classification:
   projectType: web_app
-  domain: general
-  complexity: low
-  projectContext: greenfield
+  domain: scientific
+  complexity: medium
+  projectContext: brownfield
 ---
 
 # Product Requirements Document - data-analysis-copilot
 
-**Author:** Ti  
-**Date:** 2026-02-08
+**Author:** Ti
+**Date:** 2026-03-05
 
 ## Executive Summary
 
-Data-analysis-copilot is an internal, locally hosted web app that lets electrical engineers create circuit-analysis reports in ~15 minutes instead of hours. Users upload CSVs, describe the report in natural language, and get an AI-generated work plan (editable) and then a report with charts—without building Excel charts or writing code. Fallbacks: edit the plan or use a text prompt to debug/redo. Target users: 1–2 electrical engineers doing circuit debugging; MVP is a four-quadrant SPA (Chrome, real-time progress, one report template).
+The Data Analysis Copilot is an AI-powered data analysis assistant that transforms natural language requests into executed Python analysis, visual charts, and trend reports — without requiring users to write code or build charts manually. Its primary validated use case is circuit board fault analysis for enterprise electronics engineers, where it has demonstrated a 70% reduction in analysis time compared to Excel-based workflows.
+
+The product is a locally hosted Streamlit web application backed by a LangGraph state machine. Users upload CSV data, describe what they want in plain English, review an AI-generated execution plan, and receive a rendered visual report — all in a single session. The execution pipeline generates Python code, validates it, runs it in an isolated subprocess, and self-corrects on failure (up to 3 retries + adaptive replanning) without user intervention.
+
+The MVP formalizes and stabilizes existing implemented functionality, with one key addition: graceful handling of large datasets. The current implementation delivers the core flow reliably; this PRD defines the requirements to make it production-ready for internal validation.
+
+### What Makes This Special
+
+The core insight: replacing the formula-writing and chart-building step with a natural language interface + AI-generated Python + a self-correcting execution loop produces results reliable enough for engineers to trust — without any coding expertise. Users stay in control of *what* is analyzed; the system handles *how*.
+
+Key differentiators:
+- **No coding required** — natural language replaces Python, Pandas, and Matplotlib expertise
+- **Self-correcting execution** — the LangGraph retry + replan loop resolves code failures autonomously; standard requests succeed without user debugging
+- **Full transparency** — generated code is visible and editable; engineers can inspect and rerun at any time
+- **70% faster analysis** — a report that takes 2 hours in Excel is produced in ~15 minutes
+- **LangSmith observability** — full traceability of all LLM calls and agent decisions for debugging and improvement
+
+## Project Classification
+
+- **Project Type:** Web application (Streamlit, browser-based, locally hosted)
+- **Domain:** Scientific / Data Analysis (AI agent pipeline, computational tool)
+- **Complexity:** Medium — key concerns are AI output reliability, execution safety (sandboxed subprocess), and graceful degradation for edge cases (large data)
+- **Project Context:** Brownfield — existing implementation in progress; PRD covers MVP stabilization and one new capability (large data handling)
 
 ## Success Criteria
 
 ### User Success
 
-- **Time-to-report:** Engineers achieve report creation in ~15 minutes instead of ~2 hours for a typical batch.
-- **Charts without manual grind:** They can get to "the right chart" quickly; the system handles the mechanics (data → graph) while they stay in control of what's being analyzed and why.
-- **Aha moment:** Using natural language to describe what they want (e.g. "create a report with charts for X vs Y") and getting a concrete plan and then a report with charts—without writing code or building Excel charts by hand.
+Engineers produce a complete analysis report — with correct charts and written trend analysis — from a natural language request in ≤15 minutes for a typical batch dataset. No formula-writing, no manual chart-building, no coding required. Success is felt when the system understands the intent, generates the correct analysis, and delivers a usable report without user debugging.
+
+**"Aha!" moment:** Type "create a report with voltage vs time and current vs time charts" → review plan → click Execute → report with charts appears. First time, on their own.
 
 ### Business Success
 
-- **Internal validation:** The product can generate a simple report with internal testers, running **reliably locally**.
-- **Proof point:** "This is working" = internal testers successfully produce at least one end-to-end report (upload → natural language → report with charts) on their own machines.
+Internal testers independently complete the full end-to-end flow on locally hosted instances without assistance:
+1. Upload multiple CSVs from a real test run
+2. Submit a natural language analysis request
+3. Review and execute the generated plan
+4. Receive a visual report with correct charts and trend analysis in ≤15 minutes
+5. Encounter a graceful, actionable message (not a silent failure) when large data is uploaded
 
 ### Technical Success
 
-- **Reliability:** Runs reliably when hosted locally (no flaky runs for the core flow).
-- **Execution model:** User triggers execution (e.g. click); agents run, produce the report, and the result is shown in the frontend.
+- Self-correcting execution: the retry + replan loop resolves standard code failures without user intervention
+- Local reliability: stable, repeatable runs across internal machines
+- Graceful degradation: large datasets surface a clear user-facing message with at least one recovery path — no silent failures
+- NL → report fidelity: output matches the stated request (correct chart types, correct axes)
 
 ### Measurable Outcomes
 
-- Report creation time: target **≤ 15 minutes** for a typical batch (vs ~2 hours today).
-- Capability: **Natural language → plan → report with charts** works for internal testers.
-- Environment: **Local** (locally hosted web app or desktop); stable, repeatable runs.
+| KPI | Target | Measurement |
+|---|---|---|
+| Report creation time | ≤15 minutes for typical batch | Timed from CSV upload to rendered report |
+| End-to-end success rate | Internal testers complete full flow independently | Manual verification during internal testing |
+| Core flow reliability | No flaky runs on standard workflow | Repeated test runs on internal machines |
+| NL → report fidelity | Output matches stated request | Internal tester review of chart types and axes |
+| Large data handling | No silent failures; clear guidance surfaced | Edge case testing with large CSVs |
 
 ## Product Scope
 
-### MVP - Minimum Viable Product
+**MVP Approach:** Problem-solving MVP — the goal is internal validation, not commercial launch. The MVP proves that AI-driven natural language analysis can replace Excel-based workflows for electronics engineers. A feature is in scope if its absence prevents the core flow from working or leaves users without a recovery path on failure.
 
-- **CSV upload:** Users can upload one or more CSVs.
-- **Natural language commands:** Users type what they want (e.g. "create a report with charts for X and Y"); the system interprets the intent.
-- **Single report template:** One report template that defines structure and placeholders (e.g. title, sections, chart slots).
-- **Execute and show result:** On user action (e.g. "Run" / "Generate" click), agents execute the plan, generate the report, and the **report is displayed in the frontend** (viewable in the same app).
+**Resource Requirements:** Small team (1–2 developers). Locally hosted — no infrastructure or DevOps overhead.
 
-**Outcome:** Internal testers complete one session: upload data → describe report in natural language → see generated report with charts in the UI.
+### MVP — Minimum Viable Product
 
-### Growth Features (Post-MVP)
+Stabilize and validate existing implemented functionality plus large data handling:
+- Multi-CSV upload and editable data table
+- Natural language chat interface with intent classification
+- AI-generated execution plan displayed before running
+- User-triggered plan execution (not automatic)
+- Python code generation, syntax/security/logic validation, sandboxed subprocess execution
+- Self-correcting execution: up to 3 retries + adaptive replanning
+- Visual report panel (charts + written trend analysis)
+- Editable code viewer (inspect, modify, rerun)
+- Graceful large data handling: clear user message + at least one recovery path
+- LangSmith tracing (optional, env-var configured)
 
-- Multiple report templates; reuse across batches.
-- Richer natural language (e.g. "same as last time but for this CSV").
-- Saving and reusing workflows/templates for repeated analysis.
+**Explicitly Out of Scope:**
+- Report export (PDF/PNG)
+- Session persistence across browser refreshes
+- User authentication or multi-user support
+- Batch processing
+- Cloud deployment
+- Domain expansion beyond circuit board data
 
-### Vision (Future)
+### Risk Mitigation
 
-- Full multi-agent debugging flow (describe problem + debug approach → system suggests/executes analysis and report).
-- AI-generated Python for custom analysis, integrated into the report pipeline.
-- Deeper "understanding" of circuit/debugging context to reduce manual specification.
+- *LLM output unreliability:* Retry + replan loop (up to 3 retries with adaptive replanning)
+- *Execution safety:* Sandboxed subprocess; generated code cannot affect host filesystem or network
+- *Large data failures:* Size detection + user-facing message with recovery options; no silent failures permitted
+- *Internal testers blocked:* Clear setup documentation + LangSmith tracing for diagnosis + self-correction reducing failure rate
+- *Reduced capacity:* LangSmith tracing and editable code viewer are lower-priority and deferrable if needed
 
 ## User Journeys
 
-### Journey 1: Primary User – Success Path (Sam)
+### Journey 1: Sam — Primary Success Path
 
-**Opening scene:** Sam has just finished a circuit test run and has three CSVs (e.g. voltage, current, time). She used to spend hours in Excel building charts and writing up trends. She wants a report in minutes, not hours.
+**Persona:** Sam, Electronics Test & Failure Analysis Engineer. Comfortable with Excel and CSV data, not a programmer. Constant time pressure — faulty boards delay production and add rework cost. Her deliverable is a readable report with charts that she or Morgan can act on.
 
-**Rising action:** She opens the locally hosted app, uploads the three CSVs, then types in natural language: *"Report with voltage vs time and current vs time, as well as analyzing the trends."* She reviews the request (and any plan/summary the system shows, if we add that). She hits **Run**.
+**Opening Scene:** It's 2pm on a Wednesday. Sam's test rig just finished a run and produced three CSVs — voltage, current, and time. She knows from experience that building the charts in Excel will take her the rest of the afternoon. She opens the locally hosted app.
 
-**Climax:** The agents run, generate the analysis and charts, and assemble the report. The UI shows the report with two charts (voltage vs time, current vs time) and trend analysis. She can read and use it immediately.
+**Rising Action:** She drags the three CSVs into the file uploader. The data appears in the editable table — she scans it, confirms it looks right. She types in the chat: "Create a report with voltage vs time and current vs time, and analyze the trends." A step-by-step plan appears: load data, calculate statistics, plot voltage vs time, plot current vs time, summarize trends. She reviews it quickly — looks right. She clicks Execute.
 
-**Resolution:** She gets a shareable or exportable report in ~15 minutes instead of ~2 hours. She feels the product "gets" what she asked for and delivers without manual chart-building.
+**Climax:** The LangGraph pipeline runs. Code is generated, validated, and executed. Two charts render in the report panel: voltage vs time and current vs time. Below them, a written trend analysis. Sam reads it. The voltage spike at t=220ms that she suspected is right there, flagged clearly.
 
-### Journey 2: Primary User – Edge Case (Large Data)
+**Resolution:** It's 2:17pm. The analysis that would have taken her two hours in Excel took seventeen minutes. She copies the report to share with Morgan. She feels confident — the tool understood her, the output is correct, she didn't have to touch Python or write a formula.
 
-**Opening scene:** Sam has a test run that produced very large CSVs (e.g. high sample rate, long capture). She uploads them and asks for the same kind of report (voltage vs time, current vs time, trend analysis).
+*Requirements revealed:* CSV upload (multiple files), NL chat interface, plan display, execute button, chart rendering, trend analysis text, report panel display.
 
-**Rising action:** She uploads the files and hits Run. The system runs but struggles: graphs are slow, unreadable (e.g. too many points), or the run times out. The product doesn't handle the scale well.
+---
 
-**Climax:** The system surfaces the problem instead of failing silently: e.g. a message that data is large, that graphing may be slow or degraded, or a suggestion to downsample/sample/summarize. Sam sees what went wrong and what her options are.
+### Journey 2: Sam — Large Data Edge Case
 
-**Resolution:** Sam can recover in one or more of these ways (to be decided in design): (a) the system automatically downsamples or summarizes for visualization and still produces a report; (b) the system suggests "use a subset" or "reduce rows" and she filters/subsets and retries; (c) she gets a clear warning up front so she can split the data or reduce it before running. Her expectation: the product doesn't leave her stuck when "the data is really big."
+**Opening Scene:** Sam runs the same workflow after a long high-frequency capture — the CSVs are 50MB each, with millions of data points. She uploads them and hits Execute.
+
+**Rising Action:** The pipeline runs. It generates code, attempts to render a chart with millions of points. Without graceful handling, Sam sees nothing — or worse, a Python stack trace she doesn't understand.
+
+**Climax:** Instead of a silent failure, the system surfaces a clear message: "Your dataset is too large to visualize effectively (X rows detected). Here's what you can do: [a] Automatically downsample to 10,000 points for visualization [b] Filter your data to a subset before running." Sam selects option (a).
+
+**Resolution:** The system downsamples and reruns. Charts render cleanly. The trend analysis is intact. Sam understands the tradeoff and trusts the output.
+
+*Requirements revealed:* Dataset size detection, user-facing degradation message, at least one recovery path (auto-downsample or prompt to subset), no silent failures.
+
+---
+
+### Journey 3: Developer/Maintainer — Setup & Debugging
+
+**Persona:** Alex, a developer who owns the local installation. Responsible for getting the app running on new machines and diagnosing issues when Sam reports something broken.
+
+**Opening Scene:** A new engineer joins Sam's team and needs the tool running on their laptop. Alex sets up the app from scratch on an unfamiliar machine.
+
+**Rising Action:** Alex clones the repo, installs dependencies, sets environment variables (API keys, LangSmith config). The app starts. Alex runs the standard test case — uploads a sample CSV, submits a query. The plan generates. Execute is clicked. The code fails on the first attempt. Alex opens LangSmith and traces the LLM call — the model misinterpreted the column name. The retry kicks in and self-corrects. Report renders successfully.
+
+**Climax:** Alex verifies the LangSmith trace showing the retry chain: first attempt → validation fail → retry with corrected prompt → success. The trace makes the agent's reasoning visible and debuggable without needing to instrument the codebase.
+
+**Resolution:** Alex confirms the tool is working end-to-end. When Sam later reports a failure, Alex pulls the trace and diagnoses within minutes instead of hours.
+
+*Requirements revealed:* LangSmith tracing integration, interpretable error output, self-correcting execution (retry loop), clear setup documentation.
+
+---
+
+### Journey 4: Morgan — Indirect Report Consumer
+
+**Persona:** Morgan, Engineering Director. Reviews Sam's outputs but never interacts with the tool directly. Accountable for production quality metrics and yield rates.
+
+**Opening Scene:** Sam sends Morgan a report via messaging. Morgan opens it — she's not expecting to do analysis herself, just to review and act on findings.
+
+**Rising Action:** Morgan reads the trend analysis. The charts are clear — voltage vs time shows the expected pattern with an anomaly flagged. The written summary names the anomaly and suggests it's consistent with a known failure mode.
+
+**Climax:** Morgan makes a decision: escalate the board batch for further inspection. The report gave her enough signal to act without a follow-up meeting with Sam.
+
+**Resolution:** Morgan's decision cycle is shorter. The report quality directly determines whether Morgan can act without Sam's intervention.
+
+*Requirements revealed:* Report output must be self-explanatory and readable by a non-technical stakeholder. Chart labels, axis titles, and trend summary language must be clear without engineering context.
+
+---
 
 ### Journey Requirements Summary
 
-| Journey | Capabilities revealed |
-|--------|------------------------|
-| **1 – Success path** | CSV upload (multi-file); natural-language input; Run/Execute trigger; agent execution; report generation with specified charts and trend analysis; report display in frontend; optional plan/summary before Run. |
-| **2 – Large data** | Handling large datasets (performance, timeouts); clear feedback when graphing fails or degrades; recovery path: automatic downsampling/summarization and/or user guidance (subset, filter, retry); possible upfront warning for very large uploads. |
+| Capability | Revealed by Journey |
+|---|---|
+| Multi-CSV upload | Journey 1, 2 |
+| Natural language chat interface | Journey 1, 2 |
+| AI-generated execution plan display | Journey 1 |
+| User-triggered plan execution | Journey 1 |
+| Chart rendering in report panel | Journey 1, 2, 4 |
+| Written trend analysis output | Journey 1, 4 |
+| Large data detection + graceful degradation | Journey 2 |
+| Recovery path (downsample or subset prompt) | Journey 2 |
+| No silent failures | Journey 2 |
+| LangSmith tracing | Journey 3 |
+| Self-correcting execution (retry loop) | Journey 3 |
+| Clear, stakeholder-readable report output | Journey 4 |
 
 ## Innovation & Novel Patterns
 
 ### Detected Innovation Areas
 
-- **AI-generated work plan:** The system produces the report work plan (what to analyze, which charts, in what order). That's the main novel piece—the AI drives the plan, not the user building it step by step.
-- **User-editable plan when AI fails:** If the generated plan is wrong or incomplete, the user can **edit the plan themselves** (change steps, add/remove charts or analyses) instead of being stuck.
-- **AI-generated code for plots and analysis:** The system **writes code** (e.g. Python) to create plots and run data analysis, so engineers don't write or maintain that code.
-- **Iterative repair via natural language:** When generated code or results fail, the user can **use a text prompt** to debug or ask the AI to redo (e.g. "fix the time axis," "redo this chart with a moving average"). No need to edit code by hand—prompt-driven repair.
+**New Interaction Paradigm for Engineering Data Analysis**
+The product replaces formula-writing and chart-building — skills orthogonal to engineering expertise — with a conversational interface. Engineers describe what they want in natural language; the system handles the mechanics. This is a fundamentally different interaction model from Excel-based analytics workflows, and from generic AI coding assistants that still require the user to interpret and execute output.
 
-### Market Context & Competitive Landscape
+**Self-Correcting Code Generation Pipeline**
+The LangGraph retry + replan loop creates a materially higher reliability bar than standard LLM code generation. The pipeline validates syntax, runs a security check, executes in an isolated subprocess, detects failure, and self-corrects — up to 3 retries with adaptive replanning. The result is a system non-programmers can trust to run autonomously, rather than one that requires a developer to interpret and fix errors.
 
-- Internal tool for electrical engineers; no direct "market" yet. Differentiation vs Excel: AI-driven plan + code generation + NL repair, instead of manual charting and scripting.
-- Similar ideas exist in generic "AI for data" tools, but the combination (work plan generation + code-for-plots/analysis + NL fallback for this workflow) is the specific innovation.
-
-### Validation Approach
-
-- Internal testers run real circuit-analysis batches; measure **time to report** (target ~15 min vs ~2 hours) and **success rate** (report with correct charts and trend analysis).
-- Validate work-plan quality: do generated plans usually match what an engineer would do? Validate repair: when something fails, can users get to a good result via prompt (debug/redo) or by editing the plan?
+**Autonomous NL → Execution → Report Chain**
+The full pipeline from natural language intent to rendered visual report is autonomous and requires no user code interaction. This is a novel trust architecture for AI in professional engineering workflows — the user reviews a plan (optionally), triggers execution, and receives a complete output. No debugging, no code editing required for standard requests.
 
 ### Risk Mitigation
 
-- **Plan wrong or incomplete:** User can edit the plan; no hard dependency on perfect first-shot planning.
-- **Generated code fails or is wrong:** User can prompt to debug or ask AI to redo; no requirement to write or fix code themselves.
-- **AI reliability:** Fallbacks are explicit: edit plan, prompt to redo. Avoid "AI or nothing" for core flow.
+- **LLM non-determinism:** Retry + replan loop compensates for output variability; correct results are achieved even when initial code generation fails
+- **Execution safety:** Sandboxed subprocess prevents unsafe generated code from affecting the host system
+- **Trust gap:** Full code transparency (editable code viewer) allows engineers to verify and override AI decisions
 
-## Web App Specific Requirements
+## Web Application Requirements
 
-### Project-Type Overview
+The Data Analysis Copilot is a locally hosted Streamlit web application — single-session, server-side rendered, SPA-like. No page navigation, no multi-page routing. Not publicly deployed; accessed via localhost. SEO, public discoverability, and cross-device support are out of scope.
 
-- **Single-page application (SPA)** with a **four-quadrant layout** on one screen (e.g. upload area, natural-language input, plan/work view, report/output).
-- **Internal tool**; no public deployment or SEO requirements.
-- **Real-time UX:** Show **live progress** while the report is being generated (e.g. steps, progress bar, or streaming status).
-- **Primary browser:** **Chrome**; no requirement to support other browsers for MVP.
-- **Accessibility:** **Basic usability** for internal engineers (readable, operable, no formal WCAG target).
+### Browser Support
 
-### Technical Architecture Considerations
+- **Target:** Modern Chromium-based browsers (Chrome, Edge) and Firefox on Windows — current versions only
+- **Not required:** Safari, legacy IE/Edge, mobile browsers
+- **Rationale:** Internal engineering tool on controlled company workstations
 
-- **SPA:** One shell; state and navigation handled in-app (no full page reloads for upload → plan → run → report).
-- **Four-quadrant layout:** UI and state design must keep the four areas clear and responsive to content (e.g. plan updates, report loading).
-- **Real-time progress:** Backend or agent layer exposes progress (e.g. via polling or server-sent events); frontend subscribes and updates the UI so the user sees live status.
-- **Local hosting:** Runs on internal network or localhost; no CDN or public-edge requirements.
+### Layout
 
-### Browser Matrix
+- Desktop-first — optimized for 1280px width minimum (workstations and laptops)
+- Four-panel layout (chat, plan/code, data table, report) requires sufficient horizontal space
+- No mobile breakpoints required for MVP
 
-| Browser | Support level | Notes |
-|--------|----------------|--------|
-| Chrome (evergreen) | Primary / supported | MVP target; internal use. |
-| Other browsers | Not required for MVP | May be added later if needed. |
+### Accessibility
 
-### Responsive Design
+- Basic semantic HTML: keyboard navigation, readable color contrast, descriptive labels on interactive elements
+- Full WCAG 2.1 AA compliance not required for MVP (internal tool, controlled environment)
 
-- **Desktop-first:** Optimized for typical engineer desktops/laptops.
-- **Four quadrants** must remain usable at common resolutions (e.g. 1280×720 and up); reflow or stacking for smaller screens can be deferred unless needed for MVP.
+### Implementation Constraints
 
-### Performance Targets
-
-- **Report generation:** Target end-to-end time consistent with success criteria (~15 min for a typical batch); progress feedback so the user knows the run is active.
-- **Large data:** As per user journeys, handle large CSVs with clear feedback and recovery (e.g. progress, timeouts, downsampling or guidance).
-- **UI responsiveness:** Progress and state updates feel real-time (no long frozen UI).
-
-### SEO Strategy
-
-- **Not applicable.** Internal tool; no public indexing or SEO requirements.
-
-### Accessibility Level
-
-- **Basic usability** for internal engineers: readable text, usable controls, keyboard navigation where it doesn't block the main flow. No formal WCAG level required for MVP.
-
-### Implementation Considerations
-
-- Implement and test the **four-quadrant layout** early (structure, resizing, overflow).
-- Implement a **progress/status channel** (e.g. API + polling or SSE) and wire it to the UI so "Run" shows live progress.
-- Chrome-only is acceptable for MVP; document any Chrome-specific assumptions if relevant (e.g. storage, workers).
-
-## Project Scoping & Phased Development
-
-### MVP Strategy & Philosophy
-
-**MVP Approach:** Problem-solving MVP—smallest set that delivers "I got a report in ~15 minutes without Excel." Validation = internal testers running real batches and succeeding end-to-end.
-
-**Resource Context:** Small team (1–2 electrical engineers as primary users); MVP should be buildable and maintainable with limited capacity. No separate admin/support user types for MVP.
-
-### MVP Feature Set (Phase 1)
-
-**Core User Journeys Supported:**
-- Journey 1 (success path): Upload CSVs → enter NL request (e.g. voltage/current vs time + trends) → Run → see report with charts in the UI.
-- Journey 2 (large data): Same flow with large CSVs; user gets clear feedback and a recovery path (e.g. downsampling, guidance, or retry).
-
-**Must-Have Capabilities:**
-- Four-quadrant SPA (e.g. upload, NL input, plan/work area, report view).
-- CSV upload (one or more files).
-- Natural-language input and AI-generated work plan (user can edit plan).
-- Single report template; Run/Execute → agents produce report and display in frontend.
-- Live progress during report generation.
-- Fallbacks: edit plan if wrong; use text prompt to debug/redo when code or output fails.
-- Chrome support; local hosting; basic usability (no formal a11y target for MVP).
-
-**Out of Scope for MVP:** Multiple templates, workflow save/reuse, full multi-agent debugging flow, AI-generated Python in pipeline, other browsers.
-
-### Post-MVP Features
-
-**Phase 2 (Growth):**
-- Multiple report templates; reuse across batches.
-- Richer natural language (e.g. "same as last time but for this CSV").
-- Save and reuse workflows/templates for repeated analysis.
-- Optional: better large-data handling (e.g. automatic downsampling, limits).
-
-**Phase 3 (Expansion):**
-- Full multi-agent debugging flow (describe problem + debug approach → system suggests/executes analysis and report).
-- AI-generated Python for custom analysis, integrated into report pipeline.
-- Deeper circuit/debugging context to reduce manual specification.
-
-### Risk Mitigation Strategy
-
-**Technical:** Mitigate agent and code-gen reliability with editable plans and prompt-to-debug/redo; avoid "AI or nothing." Large data: progress feedback, timeouts, and at least one recovery path (e.g. downsampling or user guidance) in MVP.
-
-**Market/Validation:** Internal testers and time-to-report (~15 min) plus success rate prove value; no external market risk for MVP.
-
-**Resource:** MVP scoped to one primary user type and one template; phased roadmap so growth/vision can be deferred if capacity is tight.
+- Streamlit session state manages all in-session data (uploaded CSVs, chat history, generated code, report output) — no persistent storage required
+- All execution occurs server-side; the browser is display-only for report rendering
+- LangSmith tracing configured via environment variable — optional for end users, required for maintainers
+- Generated code is constrained to pre-installed Python libraries (pandas, matplotlib, numpy, etc.); no dynamic library installation
 
 ## Functional Requirements
 
-### Data Input & Upload
+### Data Input & Management
 
-- **FR1:** User can upload one or more CSV files to the application.
-- **FR2:** User can remove or replace uploaded files before running report generation.
-- **FR3:** System can accept and use multiple CSVs as input for a single report run.
-- **FR4:** User can see which files are currently loaded and associated with the session.
+- **FR1:** Users can upload one or more CSV files in a single session
+- **FR2:** Users can view uploaded CSV data in an editable table within the UI
+- **FR3:** Users can edit data directly in the data table before running analysis
+- **FR4:** The system retains uploaded CSV data and chat history for the duration of a session
 
-### Natural Language & Work Plan
+### Natural Language Interface
 
-- **FR5:** User can describe the desired report in natural language (e.g. which charts, what analyses, trends).
-- **FR6:** System can generate a work plan (steps, charts, analyses) from the user's natural-language request.
-- **FR7:** User can view the generated work plan before execution.
-- **FR8:** User can edit the generated work plan (add, remove, or change steps or chart/analysis specs) before running.
-- **FR9:** System can interpret natural-language requests in the context of the uploaded data (e.g. column names, structure).
-- **FR10:** User can re-enter or change the natural-language request and get a new or updated work plan.
+- **FR5:** Users can submit analysis requests in natural language via a chat interface
+- **FR6:** The system classifies the intent of each query (report generation, simple Q&A, or general chat)
+- **FR7:** The system generates a step-by-step execution plan from a natural language analysis request
+- **FR8:** Users can review the generated execution plan before triggering execution
+- **FR9:** Users explicitly trigger plan execution — execution is not automatic
 
-### Execution & Progress
+### Code Generation & Validation
 
-- **FR11:** User can trigger report generation (e.g. Run/Execute) using the current plan and uploaded data.
-- **FR12:** System can execute the work plan (perform analysis, generate charts, assemble report).
-- **FR13:** User can see live progress during report generation (e.g. current step or phase, status).
-- **FR14:** System can provide progress or status updates during execution so the user knows the run is active and where it is.
+- **FR10:** The system generates Python analysis code from the execution plan
+- **FR11:** The system validates generated code for syntax errors before execution
+- **FR12:** The system validates generated code for unsafe or potentially destructive operations before execution
+- **FR13:** The system validates generated code for logical correctness before execution
 
-### Report Output & Display
+### Execution Engine
 
-- **FR15:** User can view the generated report within the application (e.g. in a dedicated area or quadrant).
-- **FR16:** Report can include charts/visualizations as specified in the work plan.
-- **FR17:** Report can include trend analysis or text summaries as specified in the plan.
-- **FR18:** System can render the report (charts and text) in the UI so the user can read and use it without leaving the app.
-- **FR19:** User can see the report in the same session as the upload, plan, and run (no separate export step required for basic use).
+- **FR14:** The system executes generated Python code in an isolated subprocess
+- **FR15:** The system detects code execution failures and initiates a retry with a corrected approach
+- **FR16:** The system retries failed code generation up to 3 times before triggering adaptive replanning
+- **FR17:** The system adaptively replans the analysis approach when repeated code generation attempts fail
+- **FR18:** The system completes standard analysis requests without requiring user intervention on failure
 
-### Recovery & Iteration
+### Report Output
 
-- **FR20:** User can correct or refine the work plan when the generated plan is wrong or incomplete.
-- **FR21:** When generated code or output fails or is wrong, user can describe the issue or desired fix in natural language (e.g. prompt to debug or redo).
-- **FR22:** System can re-run or adjust execution based on user feedback (e.g. redo with modified plan or with a natural-language correction).
-- **FR23:** User can re-run report generation after editing the plan or after providing feedback, without re-uploading data if it is still valid.
+- **FR19:** The system renders visual charts in a dedicated report panel from executed analysis code
+- **FR20:** The system renders written trend analysis in the report panel alongside charts
+- **FR21:** Report charts include clear labels, axis titles, and readable annotations sufficient for a non-technical stakeholder to act on
+- **FR22:** Users can view the complete report output within the application UI without exporting
+
+### Code Transparency
+
+- **FR23:** Users can view the Python code generated to produce any report
+- **FR24:** Users can edit the generated Python code directly in the UI
+- **FR25:** Users can manually trigger re-execution of edited code
 
 ### Large Data Handling
 
-- **FR24:** When data size causes slow execution, failed graphing, or degraded results, system can inform the user (e.g. message, warning, or status).
-- **FR25:** User can recover from large-data issues (e.g. via guidance to subset, retry, or system-provided downsampling/summarization) so a report can still be produced or attempted.
-- **FR26:** System can offer at least one recovery path when large data prevents successful report generation (e.g. automatic downsampling, suggestion to reduce data, or clear error with next steps).
+- **FR26:** The system detects when an uploaded dataset exceeds a size threshold for effective visualization
+- **FR27:** The system displays a clear, human-readable message when dataset size causes degraded or unrenderable visualization
+- **FR28:** The system provides at least one recovery path when a dataset is too large — either automatic downsampling or a prompt to subset/reduce the data
+- **FR29:** The system surfaces a user-readable error message for all execution failures — no silent failures
 
-### Application Structure & Layout
+### Observability
 
-- **FR27:** User can access core flows—upload, natural-language input, work plan, and report view—from a single application view (e.g. four-quadrant layout).
-- **FR28:** User can see the relationship between uploaded data, current work plan, and generated report in the same session without switching applications.
-- **FR29:** User can interact with the application in a single-page flow (no full page reload required for upload → plan → run → report).
+- **FR30:** The system logs all LLM calls and agent decisions to LangSmith when tracing is enabled
+- **FR31:** Developers can enable or disable LangSmith tracing via environment variable configuration
+- **FR32:** The system surfaces execution error information in a human-readable format to assist developer debugging
 
 ## Non-Functional Requirements
 
 ### Performance
 
-- **NFR-P1:** End-to-end report generation for a typical batch (upload → plan → run → report displayed) completes within the target window (e.g. ~15 minutes) under normal data sizes so the success criterion is achievable.
-- **NFR-P2:** Progress or status updates are shown during report generation so the user sees the run is active; the UI does not appear frozen for the whole run.
-- **NFR-P3:** The UI remains responsive during normal use (e.g. upload, editing plan, viewing report); user actions receive feedback within a few seconds where applicable.
+- **NFR1:** The application loads and reaches an interactive state within 5 seconds of starting on localhost
+- **NFR2:** A generated execution plan is displayed in the UI within 30 seconds of submitting a natural language query
+- **NFR3:** The full execution pipeline (code generation → validation → execution → report render) completes within 15 minutes for a typical batch dataset
+- **NFR4:** The UI remains responsive during pipeline execution — it does not freeze or block user input while the pipeline is running
+- **NFR5:** Dataset size detection and any resulting user message are surfaced immediately upon or before execution — no unresponsive UI states during size evaluation
 
 ### Reliability
 
-- **NFR-R1:** The application runs reliably when hosted locally (no persistent flakiness for the core flow: upload → NL → plan → run → report).
-- **NFR-R2:** When execution fails (e.g. agent or code error), the system surfaces a clear indication of failure so the user can use fallbacks (edit plan, prompt to redo).
+- **NFR6:** The standard workflow (upload CSV → NL query → plan → execute → report) completes without failure on repeated runs with the same input on locally hosted instances
+- **NFR7:** The self-correction loop resolves code generation failures without user intervention for the majority of standard analysis requests
+- **NFR8:** All execution failures surface a user-readable message — no silent failures, no raw stack traces presented to end users
 
 ### Security
 
-- **NFR-S1:** For MVP, the product is intended for local or internal-network use; no requirement to transmit user data to external services. Any future cloud or external processing would introduce additional security requirements.
+- **NFR9:** Generated Python code executes in an isolated subprocess that cannot access the host filesystem beyond the session working directory
+- **NFR10:** Generated Python code cannot make outbound network calls from within the subprocess
+- **NFR11:** The system validates generated code for unsafe operations (file writes, network calls, OS commands) before execution
+- **NFR12:** CSV data uploaded in a session does not persist to disk beyond the session lifecycle
+- **NFR13:** LLM API keys are loaded from environment variables and are never hardcoded or logged in application output
 
-### Accessibility
+### Integration
 
-- **NFR-A1:** The application meets basic usability for internal engineers (readable text, operable controls, sufficient contrast and layout). No formal WCAG level or compliance target for MVP.
+- **NFR14:** When the LLM API is unavailable, the system surfaces a clear user-facing error message rather than hanging or crashing silently
+- **NFR15:** LangSmith tracing is non-blocking — if LangSmith is unreachable or unconfigured, the application continues to function normally
+- **NFR16:** The application specifies all required Python library dependencies explicitly, ensuring consistent behavior across different local installations

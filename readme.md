@@ -1,128 +1,187 @@
-# Data Analysis Copilot
+# Run these in terminal
 
-An AI-powered data analysis assistant built with Streamlit and LangGraph, for creating reports, data analysis, and for constantly creating data analysis reports locally. For a real client, circuit board data analysis automation. Upload CSV data, ask questions, and generate visual reports through natural conversation.
-
-Video Walk through of the (earlier version) codebase: https://share.descript.com/view/m0Hx8rH6NC0
-
-## Features
-
-- **Interactive Data Editor** - Load and edit CSV data directly in the browser
-- **AI Chat Interface** - Ask questions about your data in plain English
-- **Automated Report Generation** - Request analysis reports and the AI creates a step-by-step plan, generates Python code, validates it, and displays the results
-- **Smart Intent Classification** - Automatically routes between report generation, simple Q&A, and general chat
-- **Self-Correcting Code Execution** - LangGraph workflow with up to 3 retry attempts and adaptive replanning on failure
-- **LangSmith Tracing** - Optional observability for debugging LLM calls and agent workflows
-
-## Architecture
-
-The app uses a LangGraph state machine to orchestrate the report generation pipeline:
+## Setup virtual environment for python
 
 ```
-User Request
-    |
-[Classify Intent] ──> Simple Q&A ──> Pandas Agent ──> Display Answer
-    |                  General Chat ──> LLM Response ──> Display
-    v
-[Generate Plan] ──> User reviews plan
-    |
-[Write Code] ──> Generate Python script
-    |
-[Check Code] ──> Syntax + Security + Logic + Runtime validation
-    |
-  Success? ─── Yes ──> [Generate Display Code] ──> Render Report
-    |
-    No (retries < 3) ──> [Rewrite Code] ──> Check Code
-    |
-    No (retries >= 3) ──> [Update Plan] ──> Write Code
+python3.12 -m venv .venv
 ```
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| UI | Streamlit 1.36 |
-| LLM Orchestration | LangGraph 0.3 |
-| LLM Provider | OpenAI GPT-4o |
-| LLM Framework | LangChain 0.3 |
-| Observability | LangSmith (optional) |
-| Data Processing | Pandas, NumPy |
-| Visualization | Matplotlib, Altair |
-| Web Search | DuckDuckGo Search |
-
-## Setup
-
-### Prerequisites
-
-- Python 3.12
-- An OpenAI API key
-
-### Installation
-
-1. Activate the virtual environment:
-   ```bash
-   source venv/bin/activate
-   ```
-
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. Create a `.env` file in the root directory:
-   ```
-   OPENAI_API_KEY="your-key-from-https://platform.openai.com/api-keys"
-   ```
-
-4. Run the app:
-   ```bash
-   streamlit run streamlit_app.py
-   ```
-
-   The app will open at `http://localhost:8501/`.
-
-### Optional: LangSmith Tracing
-
-To enable detailed tracing of LLM calls and agent workflows:
-
-1. Get an API key from [smith.langchain.com](https://smith.langchain.com/) > Settings > API Keys
-
-2. Add to your `.env` file:
-   ```
-   LANGSMITH_API_KEY="your-langsmith-api-key"
-   ```
-
-3. Add this to `streamlit_app.py`:
-   ```python
-   os.environ["LANGCHAIN_TRACING_V2"] = "true"
-   os.environ["LANGCHAIN_PROJECT"] = "data_analysis_copilot"
-   os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY")
-   ```
-
-4. View traces at [smith.langchain.com](https://smith.langchain.com/)
-
-## Project Structure
-
 ```
-├── streamlit_app.py               # Main application
-├── requirements.txt               # Python dependencies
-├── readme.md                      # This file
-├── .env                           # API keys (not committed)
-├── .python-version                # Python 3.12
-└── code-for-learning/             # Educational reference code
-    ├── graph_workflow.py           # Standalone LangGraph workflow example
-    └── streamlit_app_langchain.py  # Alternative LangChain agent approach
+source .venv/bin/activate
 ```
 
-## Usage
+## Install BMad Method once and use everywhere:
 
-1. **Load data** - Edit or paste CSV data in the bottom-left data editor
-2. **Ask a question** - Type in the chat box (e.g., "Create a report analyzing sales trends")
-3. **Review the plan** - The AI generates a step-by-step analysis plan in the Plan tab
-4. **Execute** - Click "Execute Plan" to run the analysis
-5. **View results** - Charts and summaries appear in the AI Generated Report panel
+```bash
+npx bmad-method install --directory /path/to/project --modules bmm --tools claude-code --yes
+```
 
-## Branch Navigation
+# Run in Claude Code
 
-- Use `main` and `dev` branches to view different stages of the project
-- Branches `V0.2_Data_Analysis_Copilot` and `V0.2_Data_Analysis_Copilot_dev` contain earlier versions
+## Open Claude Code Extention Chatbot
+
+Open Claude Code extension Chatbot in your AI IDE
+
+## Initial chat
+
+On the Claude Code Chatbot, run the initial slash command:
+
+```
+/bmad-help
+```
+
+which directs what to do next
+
+## Phase 1 Analysis
+
+```
+/bmad-bmm-create-product-brife
+```
+
+Note: Answer questions raised from running the above c0mmand
+
+What are your product vision, target users, success metrics, and scope. 
+
+ Enter background and pain points:
+
+```
+1. Background
+Enterprise electronics engineers must identify and repair problems on circuit boards — a time-consuming, labor-intensive process requiring review of large amounts of tabular data.
+
+2. Pain Points
+- Reviewing large volumes of tabular data manually
+- Complex, step-by-step troubleshooting workflow is inefficient
+```
+
+What does the data look like?
+
+```
+User can upload a csv or use the default csv data like:
+  "A": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+  "B": [15, 25, 35, 45, 55, 65, 75, 85, 95, 105],
+  "C": [5, 15, 25, 35, 45, 55, 65, 75, 85, 95],
+```
+
+What's the current workflow?
+
+```
+1. Load data - Edit or paste CSV data in the bottom-left data editor
+
+2. Ask a question - Type in the chat box (e.g., "Create a report analyzing sales trends"
+
+3. Review the plan - The AI generates a step-by-step analysis plan in the Plan tab
+
+4. Execute - Click "Execute Plan" to run the analysis
+
+5. View results - Charts and summaries appear in the AI Generated Report panel
+```
+
+What are the features of this product?
+
+```
+- Interactive Data Editor - Load and edit CSV data directly in the browser
+- AI Chat Interface - Ask questions about your data in plain English
+- Automated Report Generation - Request analysis reports and the AI creates a step-by-step plan, generates Python code, validates it, and displays the results
+- Smart Intent Classification - Automatically routes between report generation, simple Q&A, and general chat
+- Self-Correcting Code Execution - LangGraph workflow with up to 3 retry attempts and adaptive replanning on failure
+- LangSmith Tracing - Optional observability for debugging LLM calls and agent workflows
+
+```
+
+What are the users journey?
+Note: Provide users journeys even not asked from running BMad command
+
+```
+Journey 1: Primary User – Success Path (Sam)
+
+Opening scene: Sam has just finished a circuit test run and has three CSVs (e.g. voltage, current, time). She used to spend hours in Excel building charts and writing up trends. She wants a report in minutes, not hours.
+
+Rising action: She opens the locally hosted app, uploads the three CSVs, then types in natural language: "Report with voltage vs time and current vs time, as well as analyzing the trends." She reviews the request (and any plan/summary the system shows, if we add that). She hits Run.
+
+Climax: The agents run, generate the analysis and charts, and assemble the report. The UI shows the report with two charts (voltage vs time, current vs time) and trend analysis. She can read and use it immediately.
+
+Resolution: She gets a shareable or exportable report in ~15 minutes instead of ~2 hours. She feels the product "gets" what she asked for and delivers without manual chart-building.
+
+Journey 2: Primary User – Edge Case (Large Data)
+
+Opening scene: Sam has a test run that produced very large CSVs (e.g. high sample rate, long capture). She uploads them and asks for the same kind of report (voltage vs time, current vs time, trend analysis).
+
+Rising action: She uploads the files and hits Run. The system runs but struggles: graphs are slow, unreadable (e.g. too many points), or the run times out. The product doesn't handle the scale well.
+
+Climax: The system surfaces the problem instead of failing silently: e.g. a message that data is large, that graphing may be slow or degraded, or a suggestion to downsample/sample/summarize. Sam sees what went wrong and what her options are.
+
+Resolution: Sam can recover in one or more of these ways (to be decided in design): (a) the system automatically downsamples or summarizes for visualization and still produces a report; (b) the system suggests "use a subset" or "reduce rows" and she filters/subsets and retries; (c) she gets a clear warning up front so she can split the data or reduce it before running. Her expectation: the product doesn't leave her stuck when "the data is really big."
+```
+
+What are success criteria?
+
+```
+User Success
+
+1. Time-to-report: Engineers achieve report creation in ~15 minutes instead of ~2 hours for a typical batch.
+- Charts without manual grind: They can get to "the right chart" quickly; the system handles the mechanics (data → graph) while they stay in control of what's being analyzed and why.
+- Aha moment: Using natural language to describe what they want (e.g. "create a report with charts for X vs Y") and getting a concrete plan and then a report with charts—without writing code or building Excel charts by hand.
+
+2. Business Success
+- Internal validation: The product can generate a simple report with internal testers, running **reliably locally**.
+- Proof point:** "This is working" = internal testers successfully produce at least one end-to-end report (upload → natural language → report with charts) on their own machines.
+
+3. Technical Success
+- Reliability: Runs reliably when hosted locally (no flaky runs for the core flow).
+- Execution model: User triggers execution (e.g. click); agents run, produce the report, and the result is shown in the frontend.
+
+4. Measurable Outcomes
+- Report creation time: target ≤ 15 minutes for a typical batch (vs ~2 hours today).
+- Capability: Natural language → plan → report with charts works for internal testers.
+- Environment: Local (locally hosted web app or desktop); stable, repeatable runs.
+```
+
+## Phase 2 Create PRD
+Note: Open a completely new conversation on the Claude Code Chatbot
+```
+/bmad-bmm-create-prd
+```
+
+After initial PRD created, run:
+```
+/bmad-bmm-validate-prd
+```
+
+UX Design
+Open a completely new conversation on the Claude Code Chatbot, run:
+```
+/bmad-bmm-create-ux-design
+```
+
+## Phase 3 Solutioning
+
+Create Atchitecture
+```
+/bmad-bmm-create-architecture
+```
+
+Create Epics and Stories
+Open a completely new conversation on the Claude Code Chatbot, run:
+```
+/bmad-bmm-create-epics-and-stories
+```
+
+Create Story Files
+Open a completely new conversation on the Claude Code Chatbot, run:
+```
+/bmad-bmm-create-story
+```
+
+Check Implementation Readiness 
+```
+/bmad-bmm-check-implementation-readiness
+```
+
+Generate a sprint plan
+```
+/bmad-bmm-sprint-planning
+```
+
+
+
 

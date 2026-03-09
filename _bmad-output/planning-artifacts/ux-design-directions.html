@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Analysis Copilot — UX Design Directions</title>
+<style>
+  :root {
+    --primary: #4A90D9;
+    --success: #52C41A;
+    --running: #1890FF;
+    --warning: #FAAD14;
+    --error: #FF4D4F;
+    --surface: #0E1117;
+    --surface-panel: #1E2130;
+    --surface-panel-alt: #161B27;
+    --text-primary: #FAFAFA;
+    --text-secondary: #A0A0A0;
+    --border: #2D3148;
+    --font-sans: 'Segoe UI', system-ui, sans-serif;
+    --font-mono: 'Consolas', 'Source Code Pro', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #07090F;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+
+  /* Nav */
+  .nav {
+    background: #13161F;
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-title { font-weight: 600; font-size: 15px; color: var(--text-primary); }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab {
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    background: none;
+    transition: all 0.15s;
+  }
+  .nav-tab:hover { background: var(--surface-panel); color: var(--text-primary); }
+  .nav-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* Page */
+  .page { display: none; padding: 24px; }
+  .page.active { display: block; }
+
+  .direction-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .direction-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .direction-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  /* App mockup frame */
+  .mockup-frame {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: 0 4px 32px rgba(0,0,0,0.5);
+  }
+
+  .mockup-titlebar {
+    background: #13161F;
+    border-bottom: 1px solid var(--border);
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .titlebar-dots { display: flex; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-red { background: #FF5F57; }
+  .dot-yellow { background: #FEBC2E; }
+  .dot-green { background: #28C840; }
+  .titlebar-url {
+    flex: 1;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 260px;
+    margin: 0 auto;
+  }
+
+  /* 2x2 grid layout */
+  .app-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 0;
+    height: 620px;
+  }
+
+  .panel {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel:nth-child(2) { border-right: none; }
+  .panel:nth-child(3) { border-bottom: none; }
+  .panel:nth-child(4) { border-right: none; border-bottom: none; }
+
+  .panel-header {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-panel-alt);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .panel-body { flex: 1; overflow-y: auto; padding: 10px 12px; }
+
+  /* Chat panel */
+  .chat-history { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .chat-msg { display: flex; gap: 8px; align-items: flex-start; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  .chat-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; flex-shrink: 0;
+  }
+  .chat-avatar.ai { background: var(--primary); color: white; }
+  .chat-avatar.user-av { background: #3D4466; color: var(--text-primary); }
+  .chat-bubble {
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 80%;
+  }
+  .chat-bubble.ai { background: var(--surface-panel); }
+  .chat-bubble.user-b { background: #1D3557; text-align: right; }
+  .chat-input-area {
+    margin-top: auto;
+    display: flex;
+    gap: 6px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-panel-alt);
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-family: var(--font-sans);
+  }
+  .send-btn {
+    background: var(--primary);
+    border: none;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: white;
+    cursor: pointer;
+  }
+
+  /* Tabs panel */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-panel-alt);
+    padding: 0 8px;
+  }
+  .tab {
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+  .tab-content { padding: 12px; flex: 1; overflow-y: auto; }
+
+  /* Plan steps */
+  .plan-step {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .step-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .step-done { background: var(--success); color: white; }
+  .step-running { background: var(--running); color: white; }
+  .step-pending { background: var(--surface-panel); color: var(--text-secondary); border: 1px solid var(--border); }
+  .step-text { font-size: 12px; line-height: 1.5; padding-top: 2px; }
+  .step-label {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    font-weight: 600;
+  }
+  .label-done { background: rgba(82,196,26,0.15); color: var(--success); }
+  .label-running { background: rgba(24,144,255,0.15); color: var(--running); }
+  .label-pending { background: rgba(160,160,160,0.1); color: var(--text-secondary); }
+
+  .execute-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 9px;
+    background: var(--primary);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .save-template-btn {
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Code tab */
+  .code-block {
+    background: #0D1117;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: #C9D1D9;
+    overflow-x: auto;
+  }
+  .kw { color: #FF7B72; }
+  .fn { color: #D2A8FF; }
+  .st { color: #A5D6FF; }
+  .cm { color: #6E7681; }
+  .nm { color: #79C0FF; }
+
+  /* Data table panel */
+  .csv-tabs { display: flex; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--surface-panel-alt); }
+  .csv-tab {
+    padding: 3px 10px;
+    font-size: 11px;
+    border-radius: 4px;
+    background: var(--surface-panel);
+    color: var(--text-secondary);
+    cursor: pointer;
+    border: 1px solid var(--border);
+  }
+  .csv-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .data-table th {
+    background: var(--surface-panel);
+    padding: 5px 8px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+  }
+  .data-table td { padding: 4px 8px; border-bottom: 1px solid rgba(45,49,72,0.5); }
+  .data-table tr:hover td { background: rgba(74,144,217,0.06); }
+  .upload-area {
+    margin: 8px 12px;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .upload-area:hover { border-color: var(--primary); color: var(--primary); }
+  .upload-icon { font-size: 14px; }
+
+  /* Results panel */
+  .chart-container {
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .chart-title { font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary); }
+  .chart-placeholder {
+    height: 110px;
+    background: linear-gradient(135deg, #1E2130 0%, #161B27 100%);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .chart-svg { width: 100%; height: 100%; }
+  .trend-summary {
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-primary);
+  }
+  .trend-summary strong { color: var(--primary); }
+  .conclusions-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+  }
+
+  /* Warning/error state */
+  .alert {
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .alert-warning { background: rgba(250,173,20,0.1); border: 1px solid rgba(250,173,20,0.3); color: #FAAD14; }
+  .alert-action { margin-top: 8px; display: flex; gap: 6px; }
+  .alert-btn {
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid rgba(250,173,20,0.4);
+    background: rgba(250,173,20,0.1);
+    color: #FAAD14;
+  }
+  .alert-btn:hover { background: rgba(250,173,20,0.2); }
+
+  /* Direction 2 specific: lighter theme variant */
+  .light-theme {
+    --surface: #F5F7FA;
+    --surface-panel: #FFFFFF;
+    --surface-panel-alt: #EEF0F5;
+    --text-primary: #1A1D2E;
+    --text-secondary: #6B7280;
+    --border: #DDE1EE;
+  }
+
+  /* Comparison section */
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .comparison-card {
+    background: var(--surface-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .comparison-card h4 { font-size: 14px; margin-bottom: 8px; }
+  .comparison-card p { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+  .pro { color: var(--success); font-size: 11px; }
+  .con { color: var(--error); font-size: 11px; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .tag-blue { background: rgba(74,144,217,0.15); color: var(--primary); }
+  .tag-green { background: rgba(82,196,26,0.15); color: var(--success); }
+
+  /* Progress bar for execution state demo */
+  .exec-status {
+    background: var(--surface-panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(24,144,255,0.3);
+    border-top-color: var(--running);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <span class="nav-title">Data Analysis Copilot — Design Directions</span>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dir1')">Direction A: Dark Pro</button>
+    <button class="nav-tab" onclick="showPage('dir2')">Direction B: Light Clean</button>
+    <button class="nav-tab" onclick="showPage('dir3')">Direction C: State Showcase</button>
+    <button class="nav-tab" onclick="showPage('compare')">Comparison</button>
+  </div>
+</div>
+
+<!-- DIRECTION A: Dark Professional (Recommended) -->
+<div class="page active" id="page-dir1">
+  <div class="direction-label">Direction A · Recommended</div>
+  <div class="direction-title">Dark Professional — Post-query, plan ready state</div>
+  <div class="direction-desc">
+    Dark neutral background with blue accent. Shows the UI after a user has submitted a query and the plan has been generated — ready for Execute. This is the most common steady state engineers will see.
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">
+      <div class="titlebar-dots">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+      </div>
+      <div class="titlebar-url">localhost:8501</div>
+    </div>
+
+    <div class="app-grid">
+      <!-- TOP LEFT: Chat -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="panel-header">Chatbot</div>
+        <div class="panel-body">
+          <div class="chat-history">
+            <div class="chat-msg">
+              <div class="chat-avatar ai">AI</div>
+              <div class="chat-bubble ai">Hello! I've loaded the default dataset. Ask me anything about your data, or upload your own CSV below.</div>
+            </div>
+            <div class="chat-msg user">
+              <div class="chat-avatar user-av">Ti</div>
+              <div class="chat-bubble user-b">Create a report with voltage vs time and current vs time, and analyze the trends</div>
+            </div>
+            <div class="chat-msg">
+              <div class="chat-avatar ai">AI</div>
+              <div class="chat-bubble ai">I've generated an execution plan for your analysis. Review it in the Plan tab and click <strong>Execute Plan</strong> when ready.</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input class="chat-input" type="text" placeholder="Ask me something about your data..." readonly>
+          <button class="send-btn">Send</button>
+        </div>
+      </div>
+
+      <!-- TOP RIGHT: Plan/Code/Template tabs -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="tab-bar">
+          <div class="tab active">Plan</div>
+          <div class="tab">Code</div>
+          <div class="tab">Template</div>
+        </div>
+        <div class="tab-content">
+          <div class="plan-step">
+            <div class="step-num step-done">✓</div>
+            <div class="step-text">Load and validate the uploaded CSV data <span class="step-label label-done">Done</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-done">✓</div>
+            <div class="step-text">Identify voltage and current columns and parse timestamps <span class="step-label label-done">Done</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-running">→</div>
+            <div class="step-text">Plot voltage vs time with labeled axes and title <span class="step-label label-running">Running</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-pending">4</div>
+            <div class="step-text">Plot current vs time with labeled axes and title <span class="step-label label-pending">Pending</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-pending">5</div>
+            <div class="step-text">Calculate trend statistics and identify anomalies <span class="step-label label-pending">Pending</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-pending">6</div>
+            <div class="step-text">Write a plain-language trend summary with key findings <span class="step-label label-pending">Pending</span></div>
+          </div>
+          <div class="exec-status" style="margin-top:12px;">
+            <div class="spinner"></div>
+            <span style="color:var(--running);">Generating code for step 3…</span>
+          </div>
+          <button class="save-template-btn">Save as Template</button>
+        </div>
+      </div>
+
+      <!-- BOTTOM LEFT: Data table -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="csv-tabs">
+          <div class="csv-tab active">voltage.csv</div>
+          <div class="csv-tab">current.csv</div>
+          <div class="csv-tab">time.csv</div>
+          <div class="csv-tab" style="color:var(--primary);border-color:var(--primary);">+ Upload</div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <table class="data-table">
+            <thead>
+              <tr><th>time_ms</th><th>voltage_V</th><th>channel</th><th>flags</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>0</td><td>3.28</td><td>CH1</td><td>—</td></tr>
+              <tr><td>10</td><td>3.31</td><td>CH1</td><td>—</td></tr>
+              <tr><td>20</td><td>3.29</td><td>CH1</td><td>—</td></tr>
+              <tr><td>30</td><td>3.35</td><td>CH1</td><td>—</td></tr>
+              <tr><td>40</td><td>3.41</td><td>CH1</td><td>SPIKE</td></tr>
+              <tr><td>50</td><td>3.30</td><td>CH1</td><td>—</td></tr>
+              <tr><td>60</td><td>3.28</td><td>CH1</td><td>—</td></tr>
+              <tr><td>70</td><td>3.27</td><td>CH1</td><td>—</td></tr>
+              <tr><td>80</td><td>3.29</td><td>CH1</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="upload-area">
+          <span class="upload-icon">⬆</span>
+          <span>Drag and drop CSV here or <span style="color:var(--primary);">Browse files</span></span>
+        </div>
+      </div>
+
+      <!-- BOTTOM RIGHT: Results -->
+      <div class="panel">
+        <div class="panel-header">Analysis Results</div>
+        <div class="panel-body">
+          <div class="chart-container">
+            <div class="chart-title">Voltage vs Time</div>
+            <div class="chart-placeholder">
+              <svg class="chart-svg" viewBox="0 0 300 100" preserveAspectRatio="none">
+                <polyline points="0,70 30,65 60,68 90,55 120,40 150,62 180,65 210,67 240,63 270,66 300,64"
+                  fill="none" stroke="#4A90D9" stroke-width="2"/>
+                <polyline points="0,70 30,65 60,68 90,55 120,40 150,62 180,65 210,67 240,63 270,66 300,64"
+                  fill="url(#grad1)" stroke="none" opacity="0.15"/>
+                <defs>
+                  <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#4A90D9"/>
+                    <stop offset="100%" stop-color="transparent"/>
+                  </linearGradient>
+                </defs>
+                <line x1="0" y1="95" x2="300" y2="95" stroke="#2D3148" stroke-width="1"/>
+                <line x1="5" y1="0" x2="5" y2="95" stroke="#2D3148" stroke-width="1"/>
+                <text x="140" y="99" fill="#A0A0A0" font-size="8" text-anchor="middle">Time (ms)</text>
+                <text x="2" y="50" fill="#A0A0A0" font-size="8" text-anchor="middle" transform="rotate(-90,2,50)">V</text>
+              </svg>
+            </div>
+          </div>
+
+          <div class="conclusions-label">Conclusions</div>
+          <div class="trend-summary">
+            <strong>Voltage</strong> shows a stable baseline of ~3.29V with a transient spike at t=40ms reaching 3.41V — consistent with a brief load event. <strong>Current</strong> analysis pending. No fault pattern detected in the visible window.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIRECTION B: Light Clean -->
+<div class="page" id="page-dir2">
+  <div class="direction-label">Direction B</div>
+  <div class="direction-title">Light Clean — Initial / empty state</div>
+  <div class="direction-desc">
+    Light neutral background variant. Shows the initial app state when a user first opens it — default CSV loaded, example prompt visible, ready to go. Good for daytime use in bright lab environments.
+  </div>
+
+  <div class="mockup-frame" style="--surface:#F5F7FA;--surface-panel:#FFFFFF;--surface-panel-alt:#ECEEF5;--text-primary:#1A1D2E;--text-secondary:#6B7280;--border:#DDE1EE;background:#F5F7FA;color:#1A1D2E;">
+    <div class="mockup-titlebar" style="background:#ECEEF5;border-color:#DDE1EE;">
+      <div class="titlebar-dots">
+        <div class="dot dot-red"></div>
+        <div class="dot dot-yellow"></div>
+        <div class="dot dot-green"></div>
+      </div>
+      <div class="titlebar-url" style="background:#FFFFFF;border-color:#DDE1EE;color:#6B7280;">localhost:8501</div>
+    </div>
+
+    <div class="app-grid" style="background:#F5F7FA;">
+      <!-- TOP LEFT: Chat -->
+      <div class="panel" style="display:flex;flex-direction:column;border-color:#DDE1EE;">
+        <div class="panel-header" style="background:#ECEEF5;border-color:#DDE1EE;color:#6B7280;">Chatbot</div>
+        <div class="panel-body">
+          <div class="chat-history">
+            <div class="chat-msg">
+              <div class="chat-avatar ai">AI</div>
+              <div class="chat-bubble ai" style="background:#ECEEF5;color:#1A1D2E;">Hello! A sample dataset is loaded. Try asking: <em>"Plot columns A vs B and summarize the trend"</em></div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area" style="background:#ECEEF5;border-color:#DDE1EE;">
+          <input class="chat-input" type="text" placeholder="Describe the analysis you want…" readonly style="background:#FFFFFF;border-color:#DDE1EE;color:#6B7280;">
+          <button class="send-btn">Send</button>
+        </div>
+      </div>
+
+      <!-- TOP RIGHT: Plan/Code/Template (empty state) -->
+      <div class="panel" style="display:flex;flex-direction:column;border-color:#DDE1EE;">
+        <div class="tab-bar" style="background:#ECEEF5;border-color:#DDE1EE;">
+          <div class="tab active" style="color:#4A90D9;border-bottom-color:#4A90D9;">Plan</div>
+          <div class="tab" style="color:#6B7280;">Code</div>
+          <div class="tab" style="color:#6B7280;">Template</div>
+        </div>
+        <div class="tab-content" style="display:flex;align-items:center;justify-content:center;flex:1;">
+          <div style="text-align:center;color:#6B7280;">
+            <div style="font-size:28px;margin-bottom:8px;">📋</div>
+            <div style="font-size:13px;font-weight:600;color:#1A1D2E;margin-bottom:4px;">No plan yet</div>
+            <div style="font-size:12px;line-height:1.6;">Ask a question in the chat<br>to generate an analysis plan</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM LEFT: Data table -->
+      <div class="panel" style="display:flex;flex-direction:column;border-color:#DDE1EE;">
+        <div class="csv-tabs" style="background:#ECEEF5;border-color:#DDE1EE;">
+          <div class="csv-tab active" style="background:#4A90D9;color:white;border-color:#4A90D9;">sample.csv</div>
+          <div class="csv-tab" style="background:#FFFFFF;border-color:#DDE1EE;color:#6B7280;">+ Upload</div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <table class="data-table" style="color:#1A1D2E;">
+            <thead>
+              <tr>
+                <th style="background:#ECEEF5;color:#6B7280;border-color:#DDE1EE;">A</th>
+                <th style="background:#ECEEF5;color:#6B7280;border-color:#DDE1EE;">B</th>
+                <th style="background:#ECEEF5;color:#6B7280;border-color:#DDE1EE;">C</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="border-color:#DDE1EE;">10</td><td style="border-color:#DDE1EE;">24</td><td style="border-color:#DDE1EE;">28</td></tr>
+              <tr><td style="border-color:#DDE1EE;">20</td><td style="border-color:#DDE1EE;">35</td><td style="border-color:#DDE1EE;">42</td></tr>
+              <tr><td style="border-color:#DDE1EE;">30</td><td style="border-color:#DDE1EE;">52</td><td style="border-color:#DDE1EE;">49</td></tr>
+              <tr><td style="border-color:#DDE1EE;">40</td><td style="border-color:#DDE1EE;">61</td><td style="border-color:#DDE1EE;">67</td></tr>
+              <tr><td style="border-color:#DDE1EE;">50</td><td style="border-color:#DDE1EE;">75</td><td style="border-color:#DDE1EE;">80</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="upload-area" style="border-color:#DDE1EE;color:#6B7280;">
+          <span class="upload-icon">⬆</span>
+          <span>Drag and drop CSV here or <span style="color:var(--primary);">Browse files</span></span>
+        </div>
+      </div>
+
+      <!-- BOTTOM RIGHT: Results (empty) -->
+      <div class="panel" style="border-color:#DDE1EE;">
+        <div class="panel-header" style="background:#ECEEF5;border-color:#DDE1EE;color:#6B7280;">Analysis Results</div>
+        <div class="panel-body" style="display:flex;align-items:center;justify-content:center;">
+          <div style="text-align:center;color:#6B7280;">
+            <div style="font-size:28px;margin-bottom:8px;">📊</div>
+            <div style="font-size:13px;font-weight:600;color:#1A1D2E;margin-bottom:4px;">Results will appear here</div>
+            <div style="font-size:12px;line-height:1.6;color:#6B7280;">Submit a query, review the plan,<br>then click Execute Plan</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIRECTION C: State Showcase (error / large data) -->
+<div class="page" id="page-dir3">
+  <div class="direction-label">Direction C · Edge State</div>
+  <div class="direction-title">Dark Professional — Large data warning state</div>
+  <div class="direction-desc">
+    Same dark direction as A, but showing the large-data graceful degradation state in the results panel. Demonstrates how errors and warnings are surfaced inline — no modals, no tracebacks.
+  </div>
+
+  <div class="mockup-frame">
+    <div class="mockup-titlebar">
+      <div class="titlebar-dots">
+        <div class="dot dot-red"></div><div class="dot dot-yellow"></div><div class="dot dot-green"></div>
+      </div>
+      <div class="titlebar-url">localhost:8501</div>
+    </div>
+
+    <div class="app-grid">
+      <!-- TOP LEFT: Chat -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="panel-header">Chatbot</div>
+        <div class="panel-body">
+          <div class="chat-history">
+            <div class="chat-msg user">
+              <div class="chat-avatar user-av">Ti</div>
+              <div class="chat-bubble user-b">Plot vibration vs temperature for all records</div>
+            </div>
+            <div class="chat-msg">
+              <div class="chat-avatar ai">AI</div>
+              <div class="chat-bubble ai">Your dataset is large (2.1M rows). I've paused before execution — see the Results panel for recovery options.</div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input class="chat-input" type="text" placeholder="Ask me something about your data..." readonly>
+          <button class="send-btn">Send</button>
+        </div>
+      </div>
+
+      <!-- TOP RIGHT: Plan -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="tab-bar">
+          <div class="tab active">Plan</div>
+          <div class="tab">Code</div>
+          <div class="tab">Template</div>
+        </div>
+        <div class="tab-content">
+          <div class="plan-step">
+            <div class="step-num step-done">✓</div>
+            <div class="step-text">Load vibration and temperature columns from uploaded CSV <span class="step-label label-done">Done</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-done">✓</div>
+            <div class="step-text">Validate column types and check for null values <span class="step-label label-done">Done</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num" style="background:var(--warning);color:white;">!</div>
+            <div class="step-text">Plot vibration vs temperature scatter — <span style="color:var(--warning);">paused: dataset too large</span></div>
+          </div>
+          <div class="plan-step">
+            <div class="step-num step-pending">4</div>
+            <div class="step-text">Summarize correlation and trend findings <span class="step-label label-pending">Pending</span></div>
+          </div>
+          <div style="margin-top:12px;">
+            <button class="execute-btn" style="background:var(--surface-panel);color:var(--text-secondary);cursor:not-allowed;">Execution Paused</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM LEFT: Data table -->
+      <div class="panel" style="display:flex;flex-direction:column;">
+        <div class="csv-tabs">
+          <div class="csv-tab active">large_capture.csv</div>
+          <div class="csv-tab" style="color:var(--primary);border-color:var(--primary);">+ Upload</div>
+        </div>
+        <div class="panel-body" style="padding:0;">
+          <div style="padding:8px 12px;font-size:11px;color:var(--warning);background:rgba(250,173,20,0.05);border-bottom:1px solid var(--border);">
+            ⚠ 2,143,022 rows loaded — large dataset
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr><th>timestamp</th><th>vibration</th><th>temperature</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>0.000</td><td>0.023</td><td>58.2</td></tr>
+              <tr><td>0.001</td><td>0.031</td><td>58.3</td></tr>
+              <tr><td>0.002</td><td>0.019</td><td>58.1</td></tr>
+              <tr><td>0.003</td><td>0.027</td><td>58.4</td></tr>
+              <tr><td>0.004</td><td>0.022</td><td>58.2</td></tr>
+              <tr><td colspan="3" style="color:var(--text-secondary);text-align:center;padding:6px;">… 2,143,017 more rows …</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="upload-area">
+          <span class="upload-icon">⬆</span>
+          <span>Drag and drop CSV here or <span style="color:var(--primary);">Browse files</span></span>
+        </div>
+      </div>
+
+      <!-- BOTTOM RIGHT: Warning state -->
+      <div class="panel">
+        <div class="panel-header">Analysis Results</div>
+        <div class="panel-body">
+          <div class="alert alert-warning">
+            <strong>Dataset too large to visualize directly</strong><br>
+            2,143,022 rows detected. Rendering a full scatter plot may be slow or unreadable. Choose a recovery option:
+            <div class="alert-action">
+              <button class="alert-btn">Auto-downsample to 10,000 points</button>
+              <button class="alert-btn">Filter data first, then run</button>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-secondary);line-height:1.6;margin-top:8px;">
+            Downsampling preserves trend shape while keeping rendering fast. The written analysis will still cover the full dataset statistics.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARISON -->
+<div class="page" id="page-compare">
+  <div class="direction-label">Comparison</div>
+  <div class="direction-title">Direction Evaluation</div>
+  <div class="direction-desc">
+    Summary of trade-offs between directions A (Dark Professional) and B (Light Clean). Direction C is not a standalone visual direction — it demonstrates error states within Direction A.
+  </div>
+
+  <div class="comparison-grid">
+    <div class="comparison-card">
+      <h4>Direction A — Dark Professional <span class="tag tag-blue">Recommended</span></h4>
+      <p>Dark neutral background, blue accent, color-coded execution states. Matches the VS Code / GitHub Actions aesthetic engineers use daily. Reduces eye strain for long lab sessions.</p>
+      <br>
+      <div class="pro">✓ Familiar to technical users</div>
+      <div class="pro">✓ Execution state colors are highly readable on dark backgrounds</div>
+      <div class="pro">✓ Streamlit dark theme — zero CSS required for baseline</div>
+      <div class="pro">✓ Chart output (matplotlib) looks polished on dark background</div>
+      <br>
+      <div class="con">✗ May feel less approachable to non-technical observers (Morgan)</div>
+      <div class="con">✗ Requires CSS override for step-status color injection</div>
+      <br>
+      <div><span class="tag tag-green">Best for: Long lab sessions, technical primary users</span></div>
+    </div>
+
+    <div class="comparison-card">
+      <h4>Direction B — Light Clean</h4>
+      <p>Light neutral background, same blue accent. Clean, professional feel. Better for presentations and screen-sharing with non-technical stakeholders. Matches default Streamlit light mode.</p>
+      <br>
+      <div class="pro">✓ More approachable for non-technical observers</div>
+      <div class="pro">✓ Better for printing or screen-sharing in bright rooms</div>
+      <div class="pro">✓ Streamlit light theme — zero CSS required</div>
+      <br>
+      <div class="con">✗ Status colors (green, amber, red) less punchy on light background</div>
+      <div class="con">✗ matplotlib defaults produce dark-background charts by default — mismatch</div>
+      <div class="con">✗ Less consistent with the technical tools (VS Code, Jupyter dark) engineers use alongside</div>
+      <br>
+      <div><span class="tag tag-blue">Best for: Demos, presentations, bright environments</span></div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;padding:16px;background:var(--surface-panel);border:1px solid var(--border);border-radius:8px;">
+    <div style="font-weight:600;margin-bottom:6px;">Recommendation</div>
+    <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;">
+      <strong style="color:var(--text-primary);">Direction A (Dark Professional)</strong> is recommended as the default. It aligns with the technical aesthetic engineers already work in, makes execution state colors clearly readable, and avoids the matplotlib dark-chart-on-light-background mismatch. The <code>config.toml</code> theme setting makes this a single-line configuration, not a custom build. Direction B can be offered as an optional light mode in a future iteration via Streamlit's built-in theme toggle.
+    </p>
+  </div>
+</div>
+
+<script>
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>
