@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m pip install -r requirements.txt --user)",
+      "Bash(py -3.12 --version)",
+      "Bash(python3 -m pip install \"contourpy>=1.2.1\" --quiet --user --dry-run)"
+    ]
+  }
+}

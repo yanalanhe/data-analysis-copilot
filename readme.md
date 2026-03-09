@@ -177,9 +177,17 @@ Check Implementation Readiness
 /bmad-bmm-check-implementation-readiness
 ```
 
+## Phase 4 Implementation
+Note: Each following workflow in this phase should run a completely new conversation on the Claude Code Chatbot.
+
 Generate a sprint plan
 ```
 /bmad-bmm-sprint-planning
+```
+
+Create stories
+```
+/bmad-bmm-create-story
 ```
 
 

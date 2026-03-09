@@ -11,9 +11,7 @@ import time
 from dotenv import load_dotenv
 from typing import Literal
 from typing_extensions import TypedDict
-from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.tools import Tool
-from langchain_experimental.tools import PythonREPLTool
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.types import Command
@@ -31,18 +29,30 @@ def initialize_environment():
     load_dotenv()
     os.environ["LANGCHAIN_TRACING_V2"] = "true"
     os.environ["LANGCHAIN_PROJECT"] = "data_analysis_copilot"
-    os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGSMITH_API_KEY")
+    langsmith_key = os.getenv("LANGSMITH_API_KEY")
+    if langsmith_key:
+        os.environ["LANGCHAIN_API_KEY"] = langsmith_key
     os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
 
+    try:
+        langsmith_client = LangSmithClient()
+    except Exception:
+        langsmith_client = None
+
+    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     return (
-        LangSmithClient(),
-        OpenAI(api_key=os.getenv("OPENAI_API_KEY")),
+        langsmith_client,
+        openai_client,
         os.getenv("OPENAI_API_KEY"),
     )
 
 
 langsmith_client, openai_client, OPENAI_API_KEY = initialize_environment()
-openai_client = wrap_openai(openai_client)
+if langsmith_client is not None:
+    try:
+        openai_client = wrap_openai(openai_client)
+    except Exception:
+        pass
 
 if "openai_model" not in st.session_state:
     st.session_state["openai_model"] = "gpt-4o"
