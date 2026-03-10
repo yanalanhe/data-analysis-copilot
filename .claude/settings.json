@@ -5,7 +5,11 @@
       "Bash(.venv/Scripts/pip.exe install -r requirements.txt --quiet)",
       "Bash(.venv/Scripts/python.exe -c \"import matplotlib; print\\(''matplotlib'', matplotlib.__version__\\)\")",
       "Bash(.venv/Scripts/python.exe -m pytest tests/test_story_1_2.py -v)",
-      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)"
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v)",
+      "Bash(python -m pytest tests/test_intent.py -x -q)",
+      "Bash(python -m pip install typing_extensions langchain_openai langchain_core -q)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python -m pip install pandas -q)"
     ]
   }
 }

@@ -142,6 +142,115 @@ def _on_csv_upload(uploaded_files) -> None:
 
 
 # ─────────────────────────────────────────────
+# New pipeline chat helpers (Story 2.1)
+# ─────────────────────────────────────────────
+
+def _make_initial_pipeline_state(user_input: str) -> dict:
+    """Build a complete PipelineState dict with all 17 fields."""
+    return {
+        "user_query": user_input,
+        "csv_temp_path": st.session_state.get("csv_temp_path") or "",
+        "data_row_count": len(st.session_state.df) if "df" in st.session_state else 0,
+        "intent": "chat",
+        "plan": [],
+        "generated_code": "",
+        "validation_errors": [],
+        "execution_output": "",
+        "execution_success": False,
+        "retry_count": 0,
+        "replan_triggered": False,
+        "error_messages": [],
+        "report_charts": [],
+        "report_text": "",
+        "large_data_detected": bool(st.session_state.get("large_data_detected", False)),
+        "large_data_message": st.session_state.get("large_data_message", ""),
+        "recovery_applied": st.session_state.get("recovery_applied", ""),
+    }
+
+
+def _generate_qa_response(user_input: str) -> str:
+    """Call LLM with dataset context to answer a factual question about the data."""
+    try:
+        df = st.session_state.df if "df" in st.session_state else None
+        if df is not None:
+            context = (
+                f"Dataset shape: {df.shape}\n"
+                f"Columns: {list(df.columns)}\n"
+                f"Sample (first 3 rows):\n{df.head(3).to_string()}"
+            )
+        else:
+            context = "No dataset loaded."
+        response = openai_client.chat.completions.create(
+            model=st.session_state.get("openai_model", "gpt-4o"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a data analysis assistant. Answer the user's question "
+                        "about their dataset using the context below.\n\n" + context
+                    ),
+                },
+                {"role": "user", "content": user_input},
+            ],
+        )
+        return response.choices[0].message.content
+    except Exception:
+        return "I'm unable to respond right now. Please check your connection and try again."
+
+
+def _generate_chat_response(user_input: str) -> str:
+    """Call LLM to respond to general conversation."""
+    try:
+        response = openai_client.chat.completions.create(
+            model=st.session_state.get("openai_model", "gpt-4o"),
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a data analysis copilot. You help users analyze data, "
+                        "create charts and reports, and answer questions about their datasets. "
+                        "You can upload CSV files, classify analysis intent, and generate "
+                        "execution plans. Respond conversationally and helpfully."
+                    ),
+                },
+                {"role": "user", "content": user_input},
+            ],
+        )
+        return response.choices[0].message.content
+    except Exception:
+        return "I'm unable to respond right now. Please check your connection and try again."
+
+
+def _handle_chat_input(user_input: str) -> None:
+    """Orchestrate intent classification and route to appropriate response handler."""
+    from pipeline.nodes.intent import classify_intent
+
+    pipeline_state = _make_initial_pipeline_state(user_input)
+
+    try:
+        intent_result = classify_intent(pipeline_state)
+        intent = intent_result.get("intent", "chat")
+    except Exception:
+        intent = "chat"
+
+    pipeline_state = {**pipeline_state, "intent": intent}
+    st.session_state["pipeline_state"] = pipeline_state
+
+    if intent == "report":
+        bot_msg = (
+            "Got it! I'll generate an execution plan for your request. "
+            "It will appear in the Plan tab shortly."
+        )
+        st.session_state["chat_history"].append({"role": "bot", "content": bot_msg})
+    elif intent == "qa":
+        answer = _generate_qa_response(user_input)
+        st.session_state["chat_history"].append({"role": "bot", "content": answer})
+    else:  # "chat"
+        response = _generate_chat_response(user_input)
+        st.session_state["chat_history"].append({"role": "bot", "content": response})
+
+
+# ─────────────────────────────────────────────
 # LangGraph State
 # ─────────────────────────────────────────────
 
@@ -702,29 +811,21 @@ with st.container():
         with st.container(height=ROW_HIGHT):
             chat_history_container = st.container(height=ROW_HIGHT - TEXTBOX_HIGHT)
             with chat_history_container:
-                chat_history_container.title("Chatbot")
+                chat_history_container.title("Chat")
                 if "messages" not in st.session_state:
                     st.session_state.messages = []
-                for message in st.session_state.messages:
-                    with chat_history_container.chat_message(message["role"]):
-                        st.markdown(message["content"])
+                for msg in st.session_state["chat_history"]:
+                    with chat_history_container.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
 
-            input_textbox_container = st.container()
-            with input_textbox_container:
-                user_input = st.chat_input("What is up?")
+            with st.container():
+                user_input = st.chat_input("Ask something about your data...")
                 if user_input:
-                    with chat_history_container.chat_message("user"):
-                        st.markdown(user_input)
-                    st.session_state.messages.append(
+                    st.session_state["chat_history"].append(
                         {"role": "user", "content": user_input}
                     )
-                    with chat_history_container.chat_message("assistant"):
-                        response = generate_chatbot_response(
-                            openai_client, st.session_state, user_input
-                        )
-                    st.session_state.messages.append(
-                        {"role": "assistant", "content": response}
-                    )
+                    _handle_chat_input(user_input)
+                    st.rerun()
 
     with col2row1:
         with st.container(height=ROW_HIGHT):

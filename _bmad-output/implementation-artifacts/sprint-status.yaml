@@ -48,8 +48,8 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: Natural Language Request & Plan Review
-  epic-2: backlog
-  2-1-natural-language-chat-interface-intent-classification: backlog
+  epic-2: in-progress
+  2-1-natural-language-chat-interface-intent-classification: review
   2-2-execution-plan-generation-display: backlog
   2-3-plan-review-user-triggered-execution: backlog
   epic-2-retrospective: optional
