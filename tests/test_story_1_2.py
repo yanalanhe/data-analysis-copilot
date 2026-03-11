@@ -91,31 +91,150 @@ class TestPipelineState:
 
 
 # ---------------------------------------------------------------------------
-# AC #3 — utils/templates.py (dependency of init_session_state)
+# AC #3 — init_session_state() sets all 9 keys with correct defaults
+# AC #4 — init_session_state() is idempotent
+# ---------------------------------------------------------------------------
+
+class TestInitSessionState:
+    """Tests for init_session_state() — ACs #3 and #4."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_streamlit(self, monkeypatch):
+        """Replace st.session_state with a plain dict for testing."""
+        import sys
+        # Ensure streamlit module exists (may not be installed in test env)
+        if "streamlit" not in sys.modules:
+            fake_st = type("FakeStreamlit", (), {"session_state": {}})()
+            monkeypatch.setitem(sys.modules, "streamlit", fake_st)
+        import utils.session as session_mod
+        self._state = {}
+        monkeypatch.setattr(session_mod, "st", type("FakeSt", (), {"session_state": self._state})())
+
+    def test_all_nine_keys_created(self):
+        """AC #3: init_session_state() creates all 9 required keys."""
+        from utils.session import init_session_state
+        init_session_state()
+        expected_keys = {
+            "uploaded_dfs", "csv_temp_path", "chat_history",
+            "pipeline_state", "pipeline_running", "plan_approved",
+            "active_tab", "saved_templates", "active_template",
+        }
+        assert expected_keys.issubset(set(self._state.keys())), \
+            f"Missing keys: {expected_keys - set(self._state.keys())}"
+
+    def test_uploaded_dfs_default(self):
+        """AC #3: uploaded_dfs defaults to empty dict."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["uploaded_dfs"] == {}
+
+    def test_csv_temp_path_default(self):
+        """AC #3: csv_temp_path defaults to None."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["csv_temp_path"] is None
+
+    def test_chat_history_default(self):
+        """AC #3: chat_history defaults to empty list."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["chat_history"] == []
+
+    def test_pipeline_state_default(self):
+        """AC #3: pipeline_state defaults to None."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["pipeline_state"] is None
+
+    def test_pipeline_running_default(self):
+        """AC #3: pipeline_running defaults to False."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["pipeline_running"] is False
+
+    def test_plan_approved_default(self):
+        """AC #3: plan_approved defaults to False."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["plan_approved"] is False
+
+    def test_active_tab_default(self):
+        """AC #3: active_tab defaults to 'plan'."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["active_tab"] == "plan"
+
+    def test_saved_templates_default(self):
+        """AC #3: saved_templates defaults to list (from load_templates)."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert isinstance(self._state["saved_templates"], list)
+
+    def test_active_template_default(self):
+        """AC #3: active_template defaults to None."""
+        from utils.session import init_session_state
+        init_session_state()
+        assert self._state["active_template"] is None
+
+    def test_idempotent_preserves_existing_values(self):
+        """AC #4: Calling init_session_state() when keys exist does NOT overwrite them."""
+        from utils.session import init_session_state
+        # Pre-populate with non-default values
+        self._state["uploaded_dfs"] = {"existing.csv": "dataframe"}
+        self._state["chat_history"] = [{"role": "user", "content": "hello"}]
+        self._state["pipeline_running"] = True
+        self._state["active_tab"] = "code"
+
+        init_session_state()
+
+        assert self._state["uploaded_dfs"] == {"existing.csv": "dataframe"}
+        assert self._state["chat_history"] == [{"role": "user", "content": "hello"}]
+        assert self._state["pipeline_running"] is True
+        assert self._state["active_tab"] == "code"
+
+    def test_idempotent_only_fills_missing_keys(self):
+        """AC #4: Second call only fills keys that were deleted, not existing ones."""
+        from utils.session import init_session_state
+        init_session_state()
+        # Modify one value, delete another
+        self._state["plan_approved"] = True
+        del self._state["active_template"]
+
+        init_session_state()
+
+        # Modified value preserved
+        assert self._state["plan_approved"] is True
+        # Deleted key restored to default
+        assert self._state["active_template"] is None
+
+
+# ---------------------------------------------------------------------------
+# AC #3 dependency — utils/templates.py (load_templates)
 # ---------------------------------------------------------------------------
 
 class TestLoadTemplates:
     def test_returns_empty_list_when_no_file(self, tmp_path, monkeypatch):
         """load_templates() returns [] when templates.json does not exist."""
-        monkeypatch.chdir(tmp_path)
-        from utils.templates import load_templates
-        result = load_templates()
+        import utils.templates as tmpl_mod
+        monkeypatch.setattr(tmpl_mod, "TEMPLATES_FILE", str(tmp_path / "nonexistent.json"))
+        result = tmpl_mod.load_templates()
         assert result == []
 
     def test_returns_empty_list_type(self, tmp_path, monkeypatch):
-        monkeypatch.chdir(tmp_path)
-        from utils.templates import load_templates
-        result = load_templates()
+        import utils.templates as tmpl_mod
+        monkeypatch.setattr(tmpl_mod, "TEMPLATES_FILE", str(tmp_path / "nonexistent.json"))
+        result = tmpl_mod.load_templates()
         assert isinstance(result, list)
 
     def test_loads_valid_json_file(self, tmp_path, monkeypatch):
         """load_templates() loads and returns content from a valid templates.json."""
-        monkeypatch.chdir(tmp_path)
         import json
+        import utils.templates as tmpl_mod
         templates_data = [{"name": "test", "plan": ["step 1"], "code": "print('hi')"}]
+        json_path = str(tmp_path / "templates.json")
         (tmp_path / "templates.json").write_text(json.dumps(templates_data), encoding="utf-8")
-        from utils.templates import load_templates
-        result = load_templates()
+        monkeypatch.setattr(tmpl_mod, "TEMPLATES_FILE", json_path)
+        result = tmpl_mod.load_templates()
         assert result == templates_data
 
     def test_save_template_raises_not_implemented(self):

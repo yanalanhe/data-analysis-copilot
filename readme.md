@@ -195,6 +195,11 @@ Implement story
 /bmad-bmm-dev-story
 ```
 
+Note: When an epic of stories(defined in status.yaml) is implelented, switch to a different LLM model(i.e. switch to Opus from Sonnet via command /model). Start new Claude Code chat. Then perform code review:
+```
+/bmad-bmm-code-review
+```
+
 
 
 

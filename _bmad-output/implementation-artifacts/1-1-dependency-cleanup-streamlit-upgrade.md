@@ -1,6 +1,6 @@
 # Story 1.1: Dependency Cleanup & Streamlit Upgrade
 
-Status: review
+Status: done
 
 ## Story
 
@@ -216,14 +216,14 @@ claude-sonnet-4-6
 ### Debug Log References
 
 - Task 6 note: `pip install -r requirements.txt` fails on system Python 3.13 due to `contourpy==1.2.1` lacking a pre-built wheel for Python 3.13 (requires MSVC build tools). This is not a requirements.txt conflict — the project venv uses Python 3.12 where `contourpy==1.2.1` has pre-built wheels. Verified `python3 -m pip check` shows no broken requirements in the installed package set.
-- Streamlit 1.55.0 installed (latest stable under 2.0.0) — updated dependent packages that changed: `altair` 5.3.0→6.0.0, `protobuf` 5.27.1→6.33.5, `tornado` 6.4.1→6.5.4, `pyarrow` 16.1.0→23.0.1.
+- Streamlit 1.55.0 installed (latest stable under 2.0.0) — updated dependent packages that changed: `altair` 5.3.0→5.5.0, `protobuf` 5.27.1→6.33.5, `tornado` 6.4.1→6.5.4, `pyarrow` 16.1.0→23.0.1, `contourpy` 1.2.1→1.3.3, `cachetools` 5.3.3→7.0.4.
 
 ### Completion Notes List
 
 - ✅ Removed `duckduckgo_search==8.1.1` from requirements.txt and `DuckDuckGoSearchResults` import from streamlit_app.py. Confirmed no other usage in production code.
 - ✅ Removed `langchain-experimental==0.3.4` from requirements.txt and `PythonREPLTool` import from streamlit_app.py. Confirmed no other usage in production code; execution path uses subprocess.
 - ✅ Upgraded Streamlit from 1.36.0 to 1.55.0 (installed exact version). Updated requirements.txt.
-- ✅ Updated co-dependent packages bumped by Streamlit upgrade: altair, protobuf, tornado, pyarrow.
+- ✅ Updated co-dependent packages bumped by Streamlit upgrade: altair (5.3.0→5.5.0), protobuf (5.27.1→6.33.5), tornado (6.4.1→6.5.4), pyarrow (16.1.0→23.0.1), contourpy (1.2.1→1.3.3), cachetools (5.3.3→7.0.4).
 - ✅ Patched `initialize_environment()`: guarded `LANGCHAIN_API_KEY` assignment against None, wrapped `LangSmithClient()` in try/except, guarded `wrap_openai()` call behind `if langsmith_client is not None`.
 - ✅ Created `.env.example` with all required/optional keys documented.
 - ✅ Validated `streamlit_app.py` passes AST syntax check. All removed imports confirmed absent via grep.
@@ -231,10 +231,11 @@ claude-sonnet-4-6
 
 ### File List
 
-- `requirements.txt` — removed duckduckgo_search and langchain-experimental lines; upgraded streamlit 1.36.0→1.55.0; updated altair 5.3.0→6.0.0, protobuf 5.27.1→6.33.5, tornado 6.4.1→6.5.4, pyarrow 16.1.0→23.0.1
+- `requirements.txt` — removed duckduckgo_search and langchain-experimental lines; upgraded streamlit 1.36.0→1.55.0; updated altair 5.3.0→5.5.0, protobuf 5.27.1→6.33.5, tornado 6.4.1→6.5.4, pyarrow 16.1.0→23.0.1, contourpy 1.2.1→1.3.3, cachetools 5.3.3→7.0.4
 - `streamlit_app.py` — removed DuckDuckGoSearchResults and PythonREPLTool imports; patched initialize_environment() and wrap_openai guard
 - `.env.example` — created new file
 
 ### Change Log
 
 - 2026-03-08: Story 1.1 implementation — removed out-of-scope dependencies (duckduckgo_search, langchain-experimental), upgraded Streamlit 1.36→1.55, updated co-dependent packages, patched LangSmith initialization crash, created .env.example
+- 2026-03-10: Code review fixes — added `!.env.example` to .gitignore so file is tracked; removed stale version comments from requirements.txt; corrected inaccurate altair version claim (was 5.5.0, not 6.0.0); documented previously undocumented contourpy and cachetools version changes; added LANGCHAIN_ENDPOINT to .env.example

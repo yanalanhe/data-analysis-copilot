@@ -1,16 +1,61 @@
 # pipeline/nodes/planner.py
-"""Execution plan generation node. Full implementation in Story 2.2.
+"""Execution plan generation node.
 
 NOTE: Never import streamlit in this file.
 """
+import re
+
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+
 from pipeline.state import PipelineState
+
+_PLAN_SYSTEM_PROMPT = """You are an execution plan generator for a data analysis tool.
+Given a user's analysis request and their dataset information, create a clear,
+numbered step-by-step execution plan.
+
+Rules:
+- Each step must be a plain English sentence — no code, no technical jargon
+- Steps should be concrete and actionable (e.g., "Load voltage and current columns",
+  NOT "Process the data")
+- Include data loading, computation, and visualization steps as appropriate
+- Output ONLY the numbered list, one step per line
+- Format: "1. Step description" on each line
+- Typically 3-8 steps for most analysis requests"""
 
 
 def generate_plan(state: PipelineState) -> dict:
     """Generate a step-by-step execution plan from the user query.
 
-    Full implementation in Story 2.2 (execution plan generation & display).
     Returns only changed keys per LangGraph convention.
     """
-    # TODO: implement in Story 2.2
-    raise NotImplementedError("generate_plan() implemented in Story 2.2")
+    llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+    content = f"User request: {state['user_query']}"
+    if state.get("csv_temp_path"):
+        content += f"\nDataset path: {state['csv_temp_path']}"
+    if state.get("data_row_count"):
+        content += f"\nDataset rows: {state['data_row_count']}"
+
+    messages = [
+        SystemMessage(content=_PLAN_SYSTEM_PROMPT),
+        HumanMessage(content=content),
+    ]
+
+    try:
+        response = llm.invoke(messages)
+        raw = response.content.strip()
+        steps = []
+        for line in raw.split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            cleaned = re.sub(r"^\d+\.\s*", "", line)
+            if cleaned:
+                steps.append(cleaned)
+        if not steps:
+            steps = [raw]
+    except Exception:
+        steps = ["Error generating plan. Please try again."]
+
+    return {"plan": steps}

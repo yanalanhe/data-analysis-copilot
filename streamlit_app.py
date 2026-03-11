@@ -102,13 +102,27 @@ def _on_csv_upload(uploaded_files) -> None:
     Writes a combined temp CSV and sets st.session_state["csv_temp_path"].
     Updates st.session_state.df for backward compat with run_tests() and existing pipeline.
     Calls detect_large_data() hook (Story 4.1 will implement real threshold logic).
+    Skips re-processing if the uploaded file set has not changed since last call.
     """
     from utils.large_data import detect_large_data
+
+    # Skip re-processing if the same files are still in the uploader (rerun guard)
+    upload_signature = tuple(sorted((f.name, f.size) for f in uploaded_files))
+    if st.session_state.get("_upload_signature") == upload_signature:
+        return
+    st.session_state["_upload_signature"] = upload_signature
 
     # Load each uploaded file into a DataFrame
     new_dfs = {}
     for f in uploaded_files:
-        new_dfs[f.name] = pd.read_csv(f)
+        try:
+            new_dfs[f.name] = pd.read_csv(f)
+        except Exception as e:
+            st.error(f"Failed to read **{f.name}**: {e}")
+            continue
+
+    if not new_dfs:
+        return
 
     st.session_state["uploaded_dfs"] = new_dfs
 
@@ -150,7 +164,7 @@ def _make_initial_pipeline_state(user_input: str) -> dict:
     return {
         "user_query": user_input,
         "csv_temp_path": st.session_state.get("csv_temp_path") or "",
-        "data_row_count": len(st.session_state.df) if "df" in st.session_state else 0,
+        "data_row_count": len(st.session_state["df"]) if "df" in st.session_state else 0,
         "intent": "chat",
         "plan": [],
         "generated_code": "",
@@ -171,12 +185,16 @@ def _make_initial_pipeline_state(user_input: str) -> dict:
 def _generate_qa_response(user_input: str) -> str:
     """Call LLM with dataset context to answer a factual question about the data."""
     try:
-        df = st.session_state.df if "df" in st.session_state else None
+        df = st.session_state["df"] if "df" in st.session_state else None
         if df is not None:
+            # Limit columns shown to LLM to avoid oversized prompts on wide datasets
+            cols = list(df.columns)
+            preview_cols = cols[:30] if len(cols) > 30 else cols
             context = (
                 f"Dataset shape: {df.shape}\n"
-                f"Columns: {list(df.columns)}\n"
-                f"Sample (first 3 rows):\n{df.head(3).to_string()}"
+                f"Columns: {cols}\n"
+                f"Sample (first 3 rows, up to 30 columns):\n"
+                f"{df[preview_cols].head(3).to_string()}"
             )
         else:
             context = "No dataset loaded."
@@ -199,8 +217,14 @@ def _generate_qa_response(user_input: str) -> str:
 
 
 def _generate_chat_response(user_input: str) -> str:
-    """Call LLM to respond to general conversation."""
+    """Call LLM to respond to general conversation, including chat history for context."""
     try:
+        # Build message list from chat_history for multi-turn context
+        history_messages = []
+        for msg in st.session_state.get("chat_history", []):
+            role = "assistant" if msg["role"] == "bot" else msg["role"]
+            history_messages.append({"role": role, "content": msg["content"]})
+
         response = openai_client.chat.completions.create(
             model=st.session_state.get("openai_model", "gpt-4o"),
             messages=[
@@ -213,8 +237,9 @@ def _generate_chat_response(user_input: str) -> str:
                         "execution plans. Respond conversationally and helpfully."
                     ),
                 },
-                {"role": "user", "content": user_input},
-            ],
+            ]
+            + history_messages
+            + [{"role": "user", "content": user_input}],
         )
         return response.choices[0].message.content
     except Exception:
@@ -223,6 +248,10 @@ def _generate_chat_response(user_input: str) -> str:
 
 def _handle_chat_input(user_input: str) -> None:
     """Orchestrate intent classification and route to appropriate response handler."""
+    # Reset execution approval state for each new query cycle (Story 2.3 — AC #3)
+    st.session_state["plan_approved"] = False
+    st.session_state["pipeline_running"] = False
+
     from pipeline.nodes.intent import classify_intent
 
     pipeline_state = _make_initial_pipeline_state(user_input)
@@ -237,9 +266,13 @@ def _handle_chat_input(user_input: str) -> None:
     st.session_state["pipeline_state"] = pipeline_state
 
     if intent == "report":
+        from pipeline.nodes.planner import generate_plan
+        plan_result = generate_plan(pipeline_state)
+        pipeline_state = {**pipeline_state, **plan_result}
+        st.session_state["pipeline_state"] = pipeline_state
         bot_msg = (
-            "Got it! I'll generate an execution plan for your request. "
-            "It will appear in the Plan tab shortly."
+            "I've created an execution plan for your request. "
+            "Check the Plan tab to review it."
         )
         st.session_state["chat_history"].append({"role": "bot", "content": bot_msg})
     elif intent == "qa":
@@ -834,9 +867,26 @@ with st.container():
             )
 
             with col2row1_plan_tab:
-                st.write(st.session_state.plan)
-                if st.button("Execute Plan"):
-                    execute_plan(st.session_state.plan)
+                ps = st.session_state.get("pipeline_state")
+                plan_steps = ps.get("plan", []) if ps else []
+                if plan_steps:
+                    for i, step in enumerate(plan_steps):
+                        st.text(f"{i + 1}. {step}")
+                    # Guard: show button only when plan exists and not yet approved (AC #1, #3)
+                    if not st.session_state.get("plan_approved", False):
+                        if st.button("Execute Plan"):
+                            st.session_state["plan_approved"] = True
+                            st.session_state["pipeline_running"] = True
+                            st.rerun()
+                    else:
+                        # Approved — pipeline execution wired in Story 3.x
+                        st.success("✅ Plan approved.")
+                else:
+                    # Guard is intentional: qa/chat intents never populate plan,
+                    # so the Execute button is never shown for those intents (AC #4, #5)
+                    st.info(
+                        "No plan generated yet. Submit a report-type request in the Chat panel."
+                    )
 
             with col2row1_code_tab:
                 st.write(session_state_auto.formatted_output)
@@ -854,10 +904,10 @@ with st.container():
                         "No saved templates yet. Run an analysis and save it from the Plan tab."
                     )
                 else:
-                    for tmpl in saved:
+                    for idx, tmpl in enumerate(saved):
                         st.write(f"**{tmpl.get('name', 'Unnamed')}**")
                         if st.button(
-                            "Apply", key=f"apply_tmpl_{tmpl.get('name', '')}"
+                            "Apply", key=f"apply_tmpl_{idx}_{tmpl.get('name', '')}"
                         ):
                             st.session_state["active_template"] = tmpl
                             st.session_state["active_tab"] = "plan"

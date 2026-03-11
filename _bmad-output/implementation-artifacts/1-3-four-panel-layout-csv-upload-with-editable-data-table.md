@@ -1,6 +1,6 @@
 # Story 1.3: Four-Panel Layout & CSV Upload with Editable Data Table
 
-Status: review
+Status: done
 
 ## Story
 
@@ -333,3 +333,4 @@ claude-sonnet-4-6
 ### Change Log
 
 - 2026-03-09: Story 1.3 implementation — added Template tab (Plan/Code → Plan/Code/Template), added `_on_csv_upload()` with `uploaded_dfs`/`csv_temp_path`/backward-compat `df` management, added `st.file_uploader` in bottom-left panel with sample data fallback, wrote 14 unit tests.
+- 2026-03-10: Code review fixes — added rerun guard to `_on_csv_upload()` (skips re-processing when files unchanged via upload signature); added try/except for malformed CSV error handling with `st.error()`; fixed template Apply button key to include index for uniqueness; noted M1 (mirrored test pattern) and M3 (AC#3/#4 untested) as known limitations.

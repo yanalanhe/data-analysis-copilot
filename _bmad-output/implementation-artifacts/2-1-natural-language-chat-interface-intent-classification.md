@@ -1,6 +1,6 @@
 # Story 2.1: Natural Language Chat Interface & Intent Classification
 
-Status: review
+Status: done
 
 ## Story
 
@@ -313,8 +313,9 @@ claude-sonnet-4-6
 
 - `pipeline/nodes/intent.py` — replaced stub with full implementation
 - `streamlit_app.py` — added 4 chat helpers + replaced chat UI in col1row1
-- `tests/test_intent.py` — new test file (12 tests)
+- `tests/test_intent.py` — new test file (13 tests)
 
 ### Change Log
 
 - Implemented Story 2.1: Natural Language Chat Interface & Intent Classification (Date: 2026-03-09)
+- Code review fixes (Date: 2026-03-10): [H1] Added missing "q&a" normalization test; [M1] Added conversation history to `_generate_chat_response` for multi-turn context; [M2] Fixed `st.session_state.df` dot-access anti-pattern to bracket notation; [M3] Added column limiting (30 cols) in `_generate_qa_response` to prevent oversized LLM prompts; [M4] Updated File List. Reviewed by claude-opus-4-6.

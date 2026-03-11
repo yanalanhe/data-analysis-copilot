@@ -9,7 +9,13 @@
       "Bash(python -m pytest tests/test_intent.py -x -q)",
       "Bash(python -m pip install typing_extensions langchain_openai langchain_core -q)",
       "Bash(python -m pytest tests/ -v)",
-      "Bash(python -m pip install pandas -q)"
+      "Bash(python -m pip install pandas -q)",
+      "Bash(python -m pytest tests/test_story_1_2.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_planner.py -x -q)",
+      "Bash(python -m pytest tests/test_planner.py -v)",
+      "Bash(python -m pytest tests/test_story_2_2.py -v)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(python -m pytest tests/test_story_2_3.py -v)"
     ]
   }
 }

@@ -1,6 +1,6 @@
 # Story 1.2: Three-Layer Module Structure, PipelineState & Session Schema
 
-Status: review
+Status: done
 
 ## Story
 
@@ -404,7 +404,7 @@ claude-sonnet-4-6
 - ✅ Task 6: Uncommented `matplotlib==3.9.0` in `requirements.txt`. Package confirmed installed (3.9.0).
 - ✅ Task 7: Created `tests/` with `__init__.py` and 4 placeholder test files (validator, large_data, error_translation, executor).
 - ✅ Task 8: AST-verified zero actual streamlit imports in `pipeline/` and non-session `utils/` files. App AST syntax check passed.
-- ✅ Tests: 48 unit tests written and passing in `tests/test_story_1_2.py` covering all 5 ACs.
+- ✅ Tests: 60 unit tests written and passing in `tests/test_story_1_2.py` covering all 5 ACs (12 added by code review for ACs #3 and #4).
 
 ### File List
 
@@ -429,10 +429,11 @@ claude-sonnet-4-6
 - `tests/test_large_data.py` — created (placeholder)
 - `tests/test_error_translation.py` — created (placeholder)
 - `tests/test_executor.py` — created (placeholder)
-- `tests/test_story_1_2.py` — created (48 unit tests covering ACs #1–#5)
+- `tests/test_story_1_2.py` — created (60 unit tests covering ACs #1–#5; 12 added by code review)
 - `streamlit_app.py` — modified (added init_session_state() import and call)
 - `requirements.txt` — modified (uncommented matplotlib==3.9.0)
 
 ### Change Log
 
 - 2026-03-09: Story 1.2 implementation — created three-layer module structure (pipeline/, utils/, tests/), implemented PipelineState TypedDict (17 fields), implemented init_session_state() with 9 session keys, integrated init_session_state() into streamlit_app.py, uncommented matplotlib in requirements.txt, wrote 48 passing unit tests.
+- 2026-03-10: Code review fixes — added 12 missing tests for ACs #3/#4 (init_session_state defaults + idempotency); fixed _safe_load_templates() eager evaluation to lazy (avoids disk I/O on every rerun); changed TEMPLATES_FILE to absolute project-root path instead of CWD-relative; added JSON type validation in load_templates(); updated test fixtures to monkeypatch TEMPLATES_FILE instead of relying on chdir.

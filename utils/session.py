@@ -26,12 +26,14 @@ def init_session_state() -> None:
         "pipeline_running": False,
         "plan_approved": False,
         "active_tab": "plan",
-        "saved_templates": _safe_load_templates(),
         "active_template": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+    # Lazy-load templates only when key is missing (avoids disk I/O on every rerun)
+    if "saved_templates" not in st.session_state:
+        st.session_state["saved_templates"] = _safe_load_templates()
 
 
 def _safe_load_templates() -> list:

@@ -118,6 +118,14 @@ class TestClassifyIntentNormalization:
             result = classify_intent(_make_test_state("what is the max?"))
         assert result["intent"] == "qa"
 
+    def test_q_and_a_variant_normalized_to_qa(self):
+        """'q&a' in raw response should also normalize to 'qa'."""
+        with patch("pipeline.nodes.intent.ChatOpenAI") as mock_cls:
+            mock_cls.return_value = _make_mock_llm("this is a q&a intent")
+            from pipeline.nodes.intent import classify_intent
+            result = classify_intent(_make_test_state("how many rows are there?"))
+        assert result["intent"] == "qa"
+
 
 class TestClassifyIntentFallbacks:
     def test_unrecognized_response_defaults_to_chat(self):

@@ -41,17 +41,17 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # Epic 1: Application Foundation & Data Input
-  epic-1: in-progress
-  1-1-dependency-cleanup-streamlit-upgrade: review
-  1-2-three-layer-module-structure-pipelinestate-session-schema: review
-  1-3-four-panel-layout-csv-upload-with-editable-data-table: review
+  epic-1: done
+  1-1-dependency-cleanup-streamlit-upgrade: done
+  1-2-three-layer-module-structure-pipelinestate-session-schema: done
+  1-3-four-panel-layout-csv-upload-with-editable-data-table: done
   epic-1-retrospective: optional
 
   # Epic 2: Natural Language Request & Plan Review
-  epic-2: in-progress
-  2-1-natural-language-chat-interface-intent-classification: review
-  2-2-execution-plan-generation-display: backlog
-  2-3-plan-review-user-triggered-execution: backlog
+  epic-2: done
+  2-1-natural-language-chat-interface-intent-classification: done
+  2-2-execution-plan-generation-display: done
+  2-3-plan-review-user-triggered-execution: done
   epic-2-retrospective: optional
 
   # Epic 3: Automated Code Execution & Visual Report
