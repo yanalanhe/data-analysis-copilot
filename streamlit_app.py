@@ -19,6 +19,7 @@ from langsmith.wrappers import wrap_openai
 from langsmith import traceable, Client as LangSmithClient
 from streamlit_ace import st_ace
 from openai import OpenAI
+from utils.error_translation import translate_error
 
 load_dotenv()
 ROW_HIGHT = 600
@@ -118,7 +119,7 @@ def _on_csv_upload(uploaded_files) -> None:
         try:
             new_dfs[f.name] = pd.read_csv(f)
         except Exception as e:
-            st.error(f"Failed to read **{f.name}**: {e}")
+            st.error(f"Failed to read **{f.name}**: {translate_error(e)}")
             continue
 
     if not new_dfs:

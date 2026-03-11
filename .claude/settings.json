@@ -15,7 +15,14 @@
       "Bash(python -m pytest tests/test_planner.py -v)",
       "Bash(python -m pytest tests/test_story_2_2.py -v)",
       "Bash(python -m pytest --tb=short -q)",
-      "Bash(python -m pytest tests/test_story_2_3.py -v)"
+      "Bash(python -m pytest tests/test_story_2_3.py -v)",
+      "Bash(python -m pytest tests/test_codegen.py -x --tb=short -q)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/test_codegen.py -v --tb=short)",
+      "Bash(python -m pytest tests/ -q --tb=short)",
+      "Bash(python -m pytest tests/ --co -q)",
+      "Bash(python -m pytest tests/test_validator.py -q)",
+      "Bash(python -m pytest tests/test_validator.py -v)"
     ]
   }
 }
