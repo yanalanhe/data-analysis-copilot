@@ -71,9 +71,21 @@ def validate_code(code: str) -> tuple[bool, list[str]]:
     except SyntaxError as e:
         return False, [f"Syntax error: {e}"]
 
+    # Step 2: Pre-collect ast.Attribute nodes that serve as func in ast.Call nodes
+    # (including chained attrs like urllib.request.urlopen) so we can detect
+    # bare attribute *access* on blocked namespaces (e.g. f = os.system) without
+    # double-reporting the same node when it also participates in a call check.
+    call_func_attr_ids: set[int] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call):
+            func = n.func
+            while isinstance(func, ast.Attribute):
+                call_func_attr_ids.add(id(func))
+                func = func.value
+
     errors: list[str] = []
 
-    # Step 2: Walk the full AST and collect all violations.
+    # Step 3: Walk the full AST and collect all violations.
     for node in ast.walk(tree):
 
         # --- Import checks ---
@@ -109,8 +121,17 @@ def validate_code(code: str) -> tuple[bool, list[str]]:
                 root_name = _get_root_name(node.func.value)
                 if root_name and root_name in BLOCKED_NAMESPACES:
                     errors.append(
-                        f"Blocked operation: '{root_name}.*()' is not permitted."
+                        f"Blocked operation: '{root_name}.{node.func.attr}()' is not permitted."
                     )
+
+        # --- Bare attribute access on blocked namespaces (non-call) ---
+        # Catches reference-then-call bypasses: f = os.system; f('ls')
+        elif isinstance(node, ast.Attribute) and id(node) not in call_func_attr_ids:
+            root_name = _get_root_name(node)
+            if root_name and root_name in BLOCKED_NAMESPACES:
+                errors.append(
+                    f"Blocked operation: '{root_name}.{node.attr}' attribute access is not permitted."
+                )
 
     if errors:
         return False, errors

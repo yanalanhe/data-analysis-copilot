@@ -58,7 +58,7 @@ development_status:
   epic-3: in-progress
   3-1-error-translation-layer-no-silent-failures: done
   3-2-python-code-generation-from-plan: done
-  3-3-ast-allowlist-code-validator: review
+  3-3-ast-allowlist-code-validator: done
   3-4-subprocess-sandbox-execution: backlog
   3-5-self-correcting-retry-adaptive-replan-loop: backlog
   3-6-non-blocking-execution-panel-visual-report-rendering: backlog

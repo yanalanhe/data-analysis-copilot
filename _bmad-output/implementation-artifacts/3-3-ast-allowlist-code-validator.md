@@ -1,6 +1,6 @@
 # Story 3.3: AST Allowlist Code Validator
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -379,6 +379,14 @@ claude-sonnet-4-6
 - `validate_code_node` appends translated errors to `state["error_messages"]` (preserves existing messages), and returns only changed keys per LangGraph convention.
 - Created `tests/test_validator.py` with 55 unit tests covering: valid code, empty string, syntax errors, all 10 blocked imports individually, all 11 allowed imports, all 4 blocked calls, all 6 blocked namespace patterns (including chained `urllib.request.urlopen`), multiple-violation accumulation, validate_code_node dict structure (10 tests), and no-streamlit AST guard.
 - Full regression suite: **202 tests, 0 failures** (147 pre-existing + 55 new). Zero regressions.
+
+**Code Review Fixes (2026-03-11):**
+- **H1 fixed:** Added pre-pass to collect call-func attribute ids, then added `ast.Attribute` check (non-call) in main walk — catches `f = os.system` reference-then-call bypass pattern. No double-reporting for call cases.
+- **H2 fixed:** Added `test_from_matplotlib_import_pyplot_allowed` covering `from matplotlib import pyplot as plt` — the exact form specified in Task 2.7 that was previously missing.
+- **M1 fixed:** Error message for namespace attribute calls now uses specific method name: `'{root_name}.{node.func.attr}()'` instead of generic `'{root_name}.*()'` — more actionable for LLM self-correction in Story 3.5.
+- **M4 fixed:** `test_validator_no_streamlit_import` now resolves validator path via `pathlib.Path(__file__).parent.parent / ...` — CWD-independent, safe for CI.
+- **L1 fixed:** `test_os_attribute_call_blocked` updated to use `os.getcwd()` as spec'd in Task 2.5.
+- Final suite: **204 tests, 0 failures** (57 validator tests).
 
 ### File List
 

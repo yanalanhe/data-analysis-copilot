@@ -228,6 +228,11 @@ class TestAllowedImports:
         is_valid, errors = validate_code("from matplotlib.pyplot import plot")
         assert is_valid is True, errors
 
+    def test_from_matplotlib_import_pyplot_allowed(self):
+        """Task 2.7: 'from matplotlib import pyplot as plt' form must be allowed."""
+        is_valid, errors = validate_code("from matplotlib import pyplot as plt")
+        assert is_valid is True, errors
+
     def test_from_pandas_import_star_allowed(self):
         is_valid, errors = validate_code("from pandas import *")
         assert is_valid is True, errors
@@ -276,7 +281,14 @@ class TestBlockedCalls:
 class TestBlockedNamespaceAccess:
     def test_os_attribute_call_blocked(self):
         """os.* attribute calls are blocked regardless of import."""
-        is_valid, errors = validate_code("os.system('ls')")
+        is_valid, errors = validate_code("os.getcwd()")
+        assert is_valid is False
+        assert any("os" in e for e in errors)
+
+    def test_os_attribute_access_without_call_blocked(self):
+        """Assigning a blocked namespace attribute (no call) is also blocked.
+        Prevents the f = os.system; f('ls') bypass pattern."""
+        is_valid, errors = validate_code("f = os.system")
         assert is_valid is False
         assert any("os" in e for e in errors)
 
@@ -410,7 +422,7 @@ class TestValidateCodeNode:
 
 def test_validator_no_streamlit_import():
     """Regression guard: pipeline/nodes/validator.py must never import streamlit."""
-    src = pathlib.Path("pipeline/nodes/validator.py").read_text()
+    src = (pathlib.Path(__file__).parent.parent / "pipeline" / "nodes" / "validator.py").read_text()
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
