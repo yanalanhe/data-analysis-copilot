@@ -20,6 +20,7 @@ from langsmith import traceable, Client as LangSmithClient
 from streamlit_ace import st_ace
 from openai import OpenAI
 from utils.error_translation import translate_error
+from pipeline.graph import run_pipeline
 
 load_dotenv()
 ROW_HIGHT = 600
@@ -833,6 +834,71 @@ session_state_auto.formatted_output = st.session_state.formatted_output
 
 
 # ─────────────────────────────────────────────
+# Execution panel (Story 3.6)
+# ─────────────────────────────────────────────
+
+@st.fragment
+def _execution_panel() -> None:
+    """Non-blocking execution panel decorated with @st.fragment.
+
+    @st.fragment isolates reruns to this panel only — the chat panel and tabs
+    remain interactive during pipeline execution (NFR4).
+
+    Behaviour:
+    - When pipeline_running is True: runs run_pipeline(), shows st.status progress,
+      stores result in session_state, resets pipeline_running.
+    - Always renders the current report output (charts + text) or a placeholder.
+    """
+    st.write("### AI Generated Report")
+
+    ps = st.session_state.get("pipeline_state")
+
+    if st.session_state.get("pipeline_running"):
+        initial_state = ps
+        if initial_state is None:
+            st.warning("No pipeline state found. Please submit a query first.")
+            st.session_state["pipeline_running"] = False
+            return
+
+        with st.status("Running analysis...", expanded=True) as status:
+            status.update(label="⏳ Classifying intent → Generating plan → Validating code → Executing → Rendering report")
+            try:
+                result = run_pipeline(initial_state)
+            except Exception as e:
+                from utils.error_translation import translate_error
+                status.update(label="❌ Pipeline error", state="error")
+                result = {
+                    **initial_state,
+                    "execution_success": False,
+                    "error_messages": list(initial_state.get("error_messages", [])) + [translate_error(e)],
+                }
+            else:
+                status.update(label="✅ Analysis complete!", state="complete")
+
+        st.session_state["pipeline_state"] = result
+        st.session_state["pipeline_running"] = False
+        ps = result
+
+    # Render report output
+    if ps and ps.get("execution_success"):
+        charts = ps.get("report_charts") or []
+        for chart_bytes in charts:
+            st.image(chart_bytes)
+        report_text = ps.get("report_text", "")
+        if report_text:
+            st.markdown(report_text)
+        if not charts and not report_text:
+            st.info("Analysis complete. No chart output was produced.")
+    elif ps and ps.get("error_messages"):
+        for msg in ps["error_messages"]:
+            st.error(msg)
+    elif ps and ps.get("execution_success") is False and ps.get("generated_code"):
+        st.warning("The analysis did not complete successfully. Please try again or modify your request.")
+    else:
+        st.info("Run an analysis to see results here.")
+
+
+# ─────────────────────────────────────────────
 # UI
 # ─────────────────────────────────────────────
 
@@ -944,5 +1010,4 @@ with st.container():
 
     with col2row2:
         with st.container(height=ROW_HIGHT):
-            st.write("### AI Generated Report")
-            exec(st.session_state.code)
+            _execution_panel()

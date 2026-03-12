@@ -530,3 +530,129 @@ class TestExecuteCodeReturnStructure:
         )
         result = execute_code(state)
         assert result["execution_success"] is True
+
+
+# ---------------------------------------------------------------------------
+# Story 3.5: Validation guard and failure path return structure
+# ---------------------------------------------------------------------------
+
+class TestExecuteCodeValidationGuard:
+    """Tests for the validation guard that skips subprocess on validation errors."""
+
+    def test_validation_guard_skips_execution_on_errors(self):
+        """Validation guard: non-empty validation_errors → execution_success=False, no subprocess."""
+        state = _make_state(
+            generated_code="import os\nos.system('rm -rf /')",
+            validation_errors=["Blocked import: os"],
+        )
+        result = execute_code(state)
+        assert result["execution_success"] is False
+
+    def test_validation_guard_returns_empty_charts_and_text(self):
+        """Validation guard returns empty report_charts and report_text."""
+        state = _make_state(
+            generated_code="bad code",
+            validation_errors=["Syntax error"],
+        )
+        result = execute_code(state)
+        assert result["report_charts"] == []
+        assert result["report_text"] == ""
+        assert result["execution_output"] == ""
+
+    def test_validation_guard_increments_retry_count(self):
+        """Validation guard increments retry_count by 1."""
+        state = _make_state(
+            generated_code="bad",
+            validation_errors=["error"],
+            retry_count=1,
+        )
+        result = execute_code(state)
+        assert result["retry_count"] == 2
+
+    def test_validation_guard_sets_replan_at_threshold(self):
+        """Validation guard sets replan_triggered=True when retry_count reaches 3."""
+        state = _make_state(
+            generated_code="bad",
+            validation_errors=["error"],
+            retry_count=2,
+        )
+        result = execute_code(state)
+        assert result["retry_count"] == 3
+        assert result["replan_triggered"] is True
+
+    def test_validation_guard_no_replan_below_threshold(self):
+        """Validation guard: retry_count 0→1 does not trigger replan."""
+        state = _make_state(
+            generated_code="bad",
+            validation_errors=["error"],
+            retry_count=0,
+        )
+        result = execute_code(state)
+        assert result["retry_count"] == 1
+        assert result["replan_triggered"] is False
+
+    def test_validation_guard_preserves_existing_errors(self):
+        """Validation guard preserves existing error_messages."""
+        prior = ["Previous error from codegen."]
+        state = _make_state(
+            generated_code="bad",
+            validation_errors=["Syntax error"],
+            error_messages=prior,
+        )
+        result = execute_code(state)
+        assert "Previous error from codegen." in result["error_messages"]
+
+    def test_validation_guard_adds_context_message(self):
+        """Validation guard adds its own context message to error_messages."""
+        state = _make_state(
+            generated_code="bad",
+            validation_errors=["Blocked import: os"],
+            error_messages=["Blocked import: os"],
+        )
+        result = execute_code(state)
+        # Should have the original error plus the guard's context message
+        assert len(result["error_messages"]) > 1
+
+    def test_empty_validation_errors_proceeds_normally(self):
+        """Empty validation_errors list does NOT trigger the guard."""
+        state = _make_state(generated_code=_TEXT_ONLY_CODE, validation_errors=[])
+        result = execute_code(state)
+        assert result["execution_success"] is True
+
+
+class TestExecuteCodeFailureReturnStructure:
+    """Tests for failure path return structure (Story 3.5 additions)."""
+
+    def test_failure_returns_retry_count(self):
+        """Failure path includes retry_count in return dict."""
+        state = _make_state(generated_code=_FAILING_CODE, retry_count=0)
+        result = execute_code(state)
+        assert result["execution_success"] is False
+        assert "retry_count" in result
+        assert result["retry_count"] == 1
+
+    def test_failure_increments_retry_from_existing(self):
+        """Failure path increments retry_count from existing value."""
+        state = _make_state(generated_code=_FAILING_CODE, retry_count=2)
+        result = execute_code(state)
+        assert result["retry_count"] == 3
+
+    def test_failure_sets_replan_triggered_at_threshold(self):
+        """Failure path sets replan_triggered=True when new retry_count >= 3."""
+        state = _make_state(generated_code=_FAILING_CODE, retry_count=2)
+        result = execute_code(state)
+        assert result["replan_triggered"] is True
+
+    def test_failure_no_replan_below_threshold(self):
+        """Failure path: replan_triggered=False when new retry_count < 3."""
+        state = _make_state(generated_code=_FAILING_CODE, retry_count=0)
+        result = execute_code(state)
+        assert result["replan_triggered"] is False
+
+    def test_success_does_not_include_retry_keys(self):
+        """Success path must NOT include retry_count or replan_triggered."""
+        state = _make_state(generated_code=_TEXT_ONLY_CODE)
+        result = execute_code(state)
+        assert result["execution_success"] is True
+        assert "retry_count" not in result
+        assert "replan_triggered" not in result

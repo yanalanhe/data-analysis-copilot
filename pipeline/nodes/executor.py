@@ -2,14 +2,20 @@
 """Subprocess sandbox execution node.
 
 Provides execute_code(state: PipelineState) -> dict, a LangGraph node that:
-1. Creates a per-session temp directory via tempfile.mkdtemp().
-2. Writes generated code to analysis.py inside the temp dir.
-3. Copies the session CSV (if available) to data.csv in the temp dir.
-4. Launches the code in a subprocess with restricted env (PATH + PYTHONPATH only)
-   and a 60-second timeout.
-5. Parses stdout for CHART:<base64_png> lines → list[bytes] in report_charts.
-6. Cleans up the temp dir in a finally block (NFR12).
-7. Returns only changed keys per LangGraph convention.
+1. Short-circuits with retry if validation_errors are set (validation guard).
+2. Creates a per-session temp directory via tempfile.mkdtemp().
+3. Writes generated code to analysis.py inside the temp dir.
+4. Copies the session CSV (if available) to data.csv in the temp dir.
+5. Launches the code in a subprocess with restricted env (PATH + PYTHONPATH +
+   MPLCONFIGDIR + MPLBACKEND only) and a 60-second timeout.
+6. Parses stdout for CHART:<base64_png> lines → list[bytes] in report_charts.
+7. Cleans up the temp dir in a finally block (NFR12).
+8. Returns only changed keys per LangGraph convention.
+
+Story 3.5 addition: On any failure path, also returns retry_count (incremented
+by 1) and replan_triggered (True when new retry_count >= 3). This enables
+route_after_execution in pipeline/graph.py to decide retry vs. adaptive replan.
+The success path returns the original Story 3.4 key set to preserve tests.
 
 NOTE: Never import streamlit in this file.
 """
@@ -58,14 +64,36 @@ def execute_code(state: PipelineState) -> dict:
 
     Creates a per-session temp directory, writes generated code and optionally
     the session CSV into it, launches the code via sys.executable with a restricted
-    environment (only PATH and PYTHONPATH inherited), then cleans up unconditionally.
+    environment (only PATH, PYTHONPATH, MPLCONFIGDIR, MPLBACKEND inherited),
+    then cleans up unconditionally.
 
     Parses CHART:<base64_png> lines from stdout into report_charts bytes.
     All other stdout becomes report_text.
 
     All exceptions are translated through translate_error() — never raw reprs.
     Returns only changed keys per LangGraph convention.
+
+    Story 3.5: failure paths also return retry_count and replan_triggered
+    to drive route_after_execution routing in pipeline/graph.py.
     """
+    # Validation guard (Story 3.5): if validate_code_node already set
+    # validation_errors, skip subprocess and increment retry_count.
+    # This avoids running invalid code and is the safe short-circuit path.
+    if state.get("validation_errors"):
+        new_retry = state.get("retry_count", 0) + 1
+        existing_errors = list(state.get("error_messages", []))
+        return {
+            "execution_success": False,
+            "retry_count": new_retry,
+            "replan_triggered": new_retry >= 3,
+            "report_charts": [],
+            "report_text": "",
+            "execution_output": "",
+            "error_messages": existing_errors + [
+                "Execution skipped — validation errors detected."
+            ],
+        }
+
     temp_dir = tempfile.mkdtemp()
     report_charts: list[bytes] = []
     report_text: str = ""
@@ -73,6 +101,7 @@ def execute_code(state: PipelineState) -> dict:
     execution_success: bool = False
     existing_errors: list[str] = list(state.get("error_messages", []))
     new_errors: list[str] = []
+    current_retry: int = state.get("retry_count", 0)
 
     try:
         # Write generated code to a temp file inside the sandbox directory
@@ -125,10 +154,25 @@ def execute_code(state: PipelineState) -> dict:
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    return {
-        "report_charts": report_charts,
-        "report_text": report_text,
-        "execution_output": execution_output,
-        "execution_success": execution_success,
-        "error_messages": existing_errors + new_errors,
-    }
+    if execution_success:
+        # Success path: return original Story 3.4 key set (preserves test compatibility)
+        return {
+            "report_charts": report_charts,
+            "report_text": report_text,
+            "execution_output": execution_output,
+            "execution_success": True,
+            "error_messages": existing_errors + new_errors,
+        }
+    else:
+        # Failure path (Story 3.5): also return retry_count and replan_triggered
+        # to enable route_after_execution routing in pipeline/graph.py
+        new_retry = current_retry + 1
+        return {
+            "report_charts": report_charts,
+            "report_text": report_text,
+            "execution_output": execution_output,
+            "execution_success": False,
+            "retry_count": new_retry,
+            "replan_triggered": new_retry >= 3,
+            "error_messages": existing_errors + new_errors,
+        }
