@@ -55,30 +55,30 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: Automated Code Execution & Visual Report
-  epic-3: in-progress
+  epic-3: done
   3-1-error-translation-layer-no-silent-failures: done
   3-2-python-code-generation-from-plan: done
   3-3-ast-allowlist-code-validator: done
   3-4-subprocess-sandbox-execution: done
   3-5-self-correcting-retry-adaptive-replan-loop: done
-  3-6-non-blocking-execution-panel-visual-report-rendering: in-progress
+  3-6-non-blocking-execution-panel-visual-report-rendering: done
   epic-3-retrospective: optional
 
   # Epic 4: Large Data Resilience
-  epic-4: in-progress
+  epic-4: done
   4-1-large-dataset-detection-inline-warning: done
   4-2-auto-downsampling-recovery-path: done
   epic-4-retrospective: optional
 
   # Epic 5: Code Transparency & Template System
-  epic-5: in-progress
+  epic-5: done
   5-1-code-viewer-in-streamlit-ace-editor: done
   5-2-editable-code-manual-re-execution: done
   5-3-template-save-reuse: done
   epic-5-retrospective: optional
 
   # Epic 6: Developer Observability & Resilience
-  epic-6: backlog
-  6-1-langsmith-tracing-integration: backlog
+  epic-6: in-progress
+  6-1-langsmith-tracing-integration: done
   6-2-llm-api-resilience-developer-error-reporting: backlog
   epic-6-retrospective: optional

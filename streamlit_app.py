@@ -32,18 +32,13 @@ TEXTBOX_HIGHT = 90
 
 
 def initialize_environment():
-    load_dotenv()
-    os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    os.environ["LANGCHAIN_PROJECT"] = "data_analysis_copilot"
-    langsmith_key = os.getenv("LANGSMITH_API_KEY")
-    if langsmith_key:
-        os.environ["LANGCHAIN_API_KEY"] = langsmith_key
-    os.environ["LANGCHAIN_ENDPOINT"] = "https://api.smith.langchain.com"
-
-    try:
-        langsmith_client = LangSmithClient()
-    except Exception:
-        langsmith_client = None
+    load_dotenv()  # loads .env file — env vars (LANGCHAIN_TRACING_V2 etc) come from here only
+    langsmith_client = None
+    if os.getenv("LANGSMITH_API_KEY"):
+        try:
+            langsmith_client = LangSmithClient()
+        except Exception:
+            pass
 
     openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     return (
