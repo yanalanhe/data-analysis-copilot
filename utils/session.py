@@ -27,6 +27,9 @@ def init_session_state() -> None:
         "plan_approved": False,
         "active_tab": "plan",
         "active_template": None,
+        "large_data_detected": False,   # Story 4.1: set True on upload when threshold exceeded
+        "large_data_message": "",       # Story 4.1: human-readable message for inline warning
+        "recovery_applied": "",         # Story 4.2: "" = none, "downsampled" = auto-downsampled
     }
     for key, value in defaults.items():
         if key not in st.session_state:

@@ -271,20 +271,28 @@ class TestTranslateError:
 # utils/large_data.py stub defaults
 # ---------------------------------------------------------------------------
 
-class TestLargeDataStubs:
-    def test_detect_large_data_returns_false_stub(self):
-        """Stub returns False until Story 4.1 implements real logic."""
+class TestLargeDataUtils:
+    def test_detect_large_data_real_logic(self):
+        """Story 4.1 implemented real threshold logic — verify correct behaviour."""
         from utils.large_data import detect_large_data
-        assert detect_large_data(0, 0.0) is False
-        assert detect_large_data(1_000_000, 100.0) is False  # stub always False
+        assert detect_large_data(0, 0.0) is False           # empty dataset — not large
+        assert detect_large_data(1_000_000, 100.0) is True  # both thresholds exceeded
 
-    def test_apply_uniform_stride_returns_input_unchanged(self):
-        """Stub returns the input DataFrame unchanged until Story 4.2."""
+    def test_apply_uniform_stride_small_df_unchanged(self):
+        """Story 4.2: small DataFrame (below target) returned unchanged."""
         import pandas as pd
         from utils.large_data import apply_uniform_stride
         df = pd.DataFrame({"a": [1, 2, 3]})
         result = apply_uniform_stride(df)
         assert len(result) == 3
+
+    def test_apply_uniform_stride_large_df_downsamples(self):
+        """Story 4.2: large DataFrame is downsampled to DOWNSAMPLE_TARGET_ROWS."""
+        import pandas as pd
+        from utils.large_data import apply_uniform_stride, DOWNSAMPLE_TARGET_ROWS
+        df = pd.DataFrame({"a": range(50_000)})
+        result = apply_uniform_stride(df)
+        assert len(result) == DOWNSAMPLE_TARGET_ROWS
 
     def test_constants_defined(self):
         from utils import large_data

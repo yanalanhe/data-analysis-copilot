@@ -1,7 +1,8 @@
 # utils/large_data.py
 """Large data detection and uniform stride downsampling utilities.
 
-Full implementation in Stories 4.1 (detect_large_data) and 4.2 (apply_uniform_stride).
+detect_large_data: threshold check (Story 4.1).
+apply_uniform_stride: uniform stride downsampling to target rows (Story 4.2).
 NOTE: Never import streamlit in this file.
 """
 import pandas as pd
@@ -15,10 +16,9 @@ def detect_large_data(row_count: int, size_mb: float) -> bool:
     """Return True if dataset exceeds the visualization size thresholds.
 
     Thresholds: >= 100,000 rows OR >= 20 MB combined size.
-    Full implementation in Story 4.1 (large dataset detection & inline warning).
+    Called on CSV upload before any pipeline execution (NFR5).
     """
-    # TODO: implement in Story 4.1
-    return False
+    return row_count >= LARGE_DATA_ROW_THRESHOLD or size_mb >= LARGE_DATA_SIZE_THRESHOLD_MB
 
 
 def apply_uniform_stride(
@@ -26,7 +26,12 @@ def apply_uniform_stride(
 ) -> pd.DataFrame:
     """Downsample df to target_rows using uniform stride sampling.
 
-    Full implementation in Story 4.2 (auto-downsampling recovery path).
+    If len(df) <= target_rows, returns df unchanged.
+    Stride is calculated as len(df) // target_rows to ensure uniform coverage
+    across the entire dataset (not just head).
+    Result index is reset to start from 0.
     """
-    # TODO: implement in Story 4.2
-    return df
+    if len(df) <= target_rows:
+        return df
+    stride = max(1, len(df) // target_rows)
+    return df.iloc[::stride].head(target_rows).reset_index(drop=True)

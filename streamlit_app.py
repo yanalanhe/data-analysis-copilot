@@ -97,13 +97,24 @@ def handle_table_change():
         )
 
 
+def _combine_uploaded_dfs(uploaded_dfs: dict) -> pd.DataFrame:
+    """Combine uploaded DataFrames into a single DataFrame.
+
+    Single-file: returns the DataFrame directly.
+    Multi-file: concatenates with ignore_index=True.
+    """
+    if len(uploaded_dfs) == 1:
+        return list(uploaded_dfs.values())[0]
+    return pd.concat(list(uploaded_dfs.values()), ignore_index=True)
+
+
 def _on_csv_upload(uploaded_files) -> None:
     """Handle CSV file upload: populate uploaded_dfs, write temp CSV, update df.
 
     Stores each file as a DataFrame in st.session_state["uploaded_dfs"] keyed by filename.
     Writes a combined temp CSV and sets st.session_state["csv_temp_path"].
     Updates st.session_state.df for backward compat with run_tests() and existing pipeline.
-    Calls detect_large_data() hook (Story 4.1 will implement real threshold logic).
+    Calls detect_large_data() and stores result in session state (Story 4.1).
     Skips re-processing if the uploaded file set has not changed since last call.
     """
     from utils.large_data import detect_large_data
@@ -113,6 +124,9 @@ def _on_csv_upload(uploaded_files) -> None:
     if st.session_state.get("_upload_signature") == upload_signature:
         return
     st.session_state["_upload_signature"] = upload_signature
+
+    # Story 4.2: Reset recovery state when new files are uploaded
+    st.session_state["recovery_applied"] = ""
 
     # Load each uploaded file into a DataFrame
     new_dfs = {}
@@ -129,10 +143,7 @@ def _on_csv_upload(uploaded_files) -> None:
     st.session_state["uploaded_dfs"] = new_dfs
 
     # Combine all DataFrames into a single dataset
-    if len(new_dfs) == 1:
-        combined_df = list(new_dfs.values())[0]
-    else:
-        combined_df = pd.concat(list(new_dfs.values()), ignore_index=True)
+    combined_df = _combine_uploaded_dfs(new_dfs)
 
     # Keep st.session_state.df in sync for backward compat
     st.session_state.df = combined_df
@@ -152,9 +163,59 @@ def _on_csv_upload(uploaded_files) -> None:
         combined_df.to_csv(tmp, index=False)
         st.session_state["csv_temp_path"] = tmp.name
 
-    # Hook for large data detection — stub returns False until Story 4.1
+    # Large data detection — runs on upload before any pipeline execution (NFR5, Story 4.1)
     combined_size_mb = sum(f.size for f in uploaded_files) / 1_048_576
-    detect_large_data(len(combined_df), combined_size_mb)
+    row_count = len(combined_df)
+    is_large = detect_large_data(row_count, combined_size_mb)
+    if is_large:
+        st.session_state["large_data_detected"] = True
+        st.session_state["large_data_message"] = (
+            f"Your dataset has {row_count:,} rows / {combined_size_mb:.1f} MB, "
+            "which exceeds the visualization threshold."
+        )
+    else:
+        st.session_state["large_data_detected"] = False
+        st.session_state["large_data_message"] = ""
+
+
+# ─────────────────────────────────────────────
+# Story 4.2: Auto-downsample helper
+# ─────────────────────────────────────────────
+
+def _apply_downsample() -> None:
+    """Apply uniform stride downsampling to the current uploaded dataset.
+
+    Overwrites the session temp CSV with the downsampled data.
+    Sets recovery_applied = "downsampled" in session state.
+    Called from the auto-downsample button in _execution_panel().
+    """
+    from utils.large_data import apply_uniform_stride
+
+    uploaded_dfs = st.session_state.get("uploaded_dfs", {})
+    if not uploaded_dfs:
+        st.warning("No uploaded dataset found. Please upload a CSV file first.")
+        return
+
+    # Reconstruct combined DataFrame from original uploads
+    combined_df = _combine_uploaded_dfs(uploaded_dfs)
+
+    downsampled_df = apply_uniform_stride(combined_df)
+
+    # Overwrite the existing temp CSV with downsampled data
+    csv_temp_path = st.session_state.get("csv_temp_path")
+    if csv_temp_path:
+        downsampled_df.to_csv(csv_temp_path, index=False)
+    else:
+        # Fallback: create a new temp file if csv_temp_path is somehow missing
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".csv", mode="w", encoding="utf-8"
+        ) as tmp:
+            downsampled_df.to_csv(tmp, index=False)
+            st.session_state["csv_temp_path"] = tmp.name
+
+    # Update df in session for backward compat with existing pipeline
+    st.session_state.df = downsampled_df
+    st.session_state["recovery_applied"] = "downsampled"
 
 
 # ─────────────────────────────────────────────
@@ -851,6 +912,24 @@ def _execution_panel() -> None:
     """
     st.write("### AI Generated Report")
 
+    # Story 4.1 + 4.2: Inline large data warning with recovery options (no modal, FR27, FR28)
+    large_data = st.session_state.get("large_data_detected", False)
+    recovery = st.session_state.get("recovery_applied", "")
+
+    if large_data:
+        base_msg = st.session_state.get("large_data_message", "")
+        filter_hint = " You can also filter your data in the editable data table before running analysis."
+        st.warning(base_msg + filter_hint)
+
+        if recovery != "downsampled":
+            # Story 4.2: Show auto-downsample button (AC #1)
+            if st.button("Auto-downsample to 10,000 points"):
+                _apply_downsample()
+                st.rerun()
+        else:
+            # Story 4.2: Recovery confirmation note (AC #4)
+            st.success("Downsampled to 10,000 points using uniform stride.")
+
     ps = st.session_state.get("pipeline_state")
 
     if st.session_state.get("pipeline_running"):
@@ -896,6 +975,13 @@ def _execution_panel() -> None:
         st.warning("The analysis did not complete successfully. Please try again or modify your request.")
     else:
         st.info("Run an analysis to see results here.")
+
+    # Story 4.2 AC #6: warn if pipeline ran on full large dataset without recovery
+    if large_data and recovery == "" and ps and (ps.get("error_messages") or ps.get("execution_success") is False):
+        st.warning(
+            "Analysis ran on the full large dataset. Results may be incomplete or unrenderable. "
+            "Consider using the auto-downsample button above."
+        )
 
 
 # ─────────────────────────────────────────────
@@ -995,10 +1081,15 @@ with st.container():
 
             if uploaded_files:
                 _on_csv_upload(uploaded_files)
-            elif not st.session_state.get("uploaded_dfs"):
-                # No CSV uploaded yet — load the sample dataset as a starting point
-                if "df" not in st.session_state:
-                    st.session_state.df = get_dataframe()
+            else:
+                # Files removed or never uploaded — clear large data warning and recovery state
+                st.session_state["large_data_detected"] = False
+                st.session_state["large_data_message"] = ""
+                st.session_state["recovery_applied"] = ""  # Story 4.2
+                if not st.session_state.get("uploaded_dfs"):
+                    # No CSV uploaded yet — load the sample dataset as a starting point
+                    if "df" not in st.session_state:
+                        st.session_state.df = get_dataframe()
 
             edited_df = st.data_editor(
                 st.session_state.df if "df" in st.session_state else get_dataframe(),

@@ -65,9 +65,9 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Large Data Resilience
-  epic-4: backlog
-  4-1-large-dataset-detection-inline-warning: backlog
-  4-2-auto-downsampling-recovery-path: backlog
+  epic-4: in-progress
+  4-1-large-dataset-detection-inline-warning: done
+  4-2-auto-downsampling-recovery-path: done
   epic-4-retrospective: optional
 
   # Epic 5: Code Transparency & Template System
