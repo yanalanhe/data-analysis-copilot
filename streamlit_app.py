@@ -1024,6 +1024,54 @@ def _execution_panel() -> None:
 
 st.set_page_config(layout="wide")
 
+# Title and Welcome Section
+st.title("🔌 Circuit Board Data Analysis Tool")
+
+# Usage Section
+with st.expander("📖 Usage Examples", expanded=False):
+    st.warning("⚠️ **Important:** You must upload the related CSV files to the 'User Data Set' section before using these examples.")
+    st.markdown("""
+    **1. Diagnose Machine Event (3-Step Analysis)**
+    ```
+    Diagnose one machine event using three synchronized CSVs from the same time window.
+    In CSV1("chart1_tracking_command_response.csv"), compare Command(command_pct) vs Response(response_pct).
+    If Response deviates >±5% during transitions, flag tracking failure.
+    If tracking fails, check CSV2(chart2_power_supply_output.csv): compare Supply Voltage(supply_v) vs Output(output_rpm);
+    If Output weakens, drops, or gets noisy when Voltage dips, classify power-related failure.
+    If not, check CSV3(chart3_mode_sensor_mismatch.csv): compare Sensor1(sensor2_pct) vs Sensor2(sensor2_pct);
+    If they diverge mainly in one mode/event window, classify mode-specific sensor mismatch.
+    Output format: Step 1 finding; Step 2 finding; Step 3 finding; Final fault type;
+    Root-cause hypothesis;
+    Recommended next check.
+    Include three charts in the output report: one for each step (CSV1, CSV2, CSV3).
+    ```
+
+    **2. Analyze Command vs Response Tracking**
+    ```
+    Analyze uploaded "chart1_tracking_command_response.csv".
+    Compare Command(command_pct) vs Response(response_pct).
+    Pass if Response stays within ±5% of Command; fail if it overshoots, undershoots, or exceeds ±5%.
+    Output: Pass/Fail; For each Pass/Fail, display total count and its percentage; key timestamps; conclusion. Include one chart.
+    ```
+
+    **3. Check Power Supply Stability**
+    ```
+    Checks whether the problem is related to power instability.
+    If Supply Voltage(supply_v) drops and Output(output_rpm) weakens, drops, or gets noisy at the same time, the issue may be power-related.
+    If Output remains stable despite normal voltage variation, there is no strong evidence of power failure
+    ```
+
+    **4. Analyze Sensor Mismatch Behavior**
+    ```
+    Analyze uploaded "chart3_mode_sensor_mismatch.csv".
+    Checks whether the issue is a sensor mismatch during a special mode.
+    If Sensor1(sensor1_pct) and Sensor2(sensor2_pct) agree during normal operation but diverge mainly in one mode or event window, the issue may be mode-specific
+    If disagreement exists across the full capture, it is persistent sensor disagreement
+    ```
+    """)
+
+st.markdown("---")
+
 with st.container():
     col1row1, col2row1 = st.columns(2)
 
