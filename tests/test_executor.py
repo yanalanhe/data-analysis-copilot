@@ -30,8 +30,8 @@ def _make_state(**overrides):
     """Return a minimal PipelineState-compatible dict for testing."""
     base = {
         "user_query": "plot sales over time",
-        "csv_temp_path": None,
-        "data_row_count": 100,
+        "csv_temp_paths": {},
+        "csv_metadata": "",
         "intent": "report",
         "plan": ["Load data", "Plot chart"],
         "generated_code": "",
@@ -467,7 +467,7 @@ class TestExecuteCodeReturnStructure:
         result = execute_code(state)
 
         pipeline_only_keys = {
-            "user_query", "csv_temp_path", "data_row_count", "intent",
+            "user_query", "csv_temp_paths", "csv_metadata", "intent",
             "plan", "generated_code", "validation_errors",
             "retry_count", "replan_triggered", "large_data_detected",
             "large_data_message", "recovery_applied",
@@ -498,7 +498,7 @@ class TestExecuteCodeReturnStructure:
         )
 
     def test_csv_file_copied_and_readable(self):
-        """AC #1: CSV is copied into temp dir as data.csv and readable by subprocess."""
+        """AC #1: CSV is copied into temp dir using original filename and readable by subprocess."""
         csv_code = 'import pandas as pd\ndf = pd.read_csv("data.csv")\nprint(f"rows={len(df)}")\n'
         # Create a real CSV temp file
         csv_tmp = tempfile.NamedTemporaryFile(
@@ -507,7 +507,10 @@ class TestExecuteCodeReturnStructure:
         try:
             csv_tmp.write("a,b\n1,2\n3,4\n")
             csv_tmp.close()
-            state = _make_state(generated_code=csv_code, csv_temp_path=csv_tmp.name)
+            state = _make_state(
+                generated_code=csv_code,
+                csv_temp_paths={"data.csv": csv_tmp.name}
+            )
             result = execute_code(state)
         finally:
             os.unlink(csv_tmp.name)
@@ -515,18 +518,18 @@ class TestExecuteCodeReturnStructure:
         assert result["execution_success"] is True
         assert "rows=2" in result["report_text"]
 
-    def test_csv_path_none_does_not_crash(self):
-        """Edge case: csv_temp_path=None → no CSV copy, subprocess still runs."""
-        state = _make_state(generated_code=_TEXT_ONLY_CODE, csv_temp_path=None)
+    def test_csv_temp_paths_empty_does_not_crash(self):
+        """Edge case: csv_temp_paths={} (no files) → no CSV copy, subprocess still runs."""
+        state = _make_state(generated_code=_TEXT_ONLY_CODE, csv_temp_paths={})
         result = execute_code(state)
         # Should not crash and should succeed (code doesn't use CSV)
         assert result["execution_success"] is True
 
-    def test_csv_path_missing_file_does_not_crash(self):
-        """Edge case: csv_temp_path points to nonexistent file → no crash."""
+    def test_csv_temp_paths_missing_file_does_not_crash(self):
+        """Edge case: csv_temp_paths entry points to nonexistent file → no crash."""
         state = _make_state(
             generated_code=_TEXT_ONLY_CODE,
-            csv_temp_path="/nonexistent/path/data.csv",
+            csv_temp_paths={"missing.csv": "/nonexistent/path/data.csv"},
         )
         result = execute_code(state)
         assert result["execution_success"] is True

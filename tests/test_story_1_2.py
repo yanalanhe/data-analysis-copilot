@@ -32,8 +32,8 @@ class TestPipelineState:
         from pipeline.state import PipelineState
         required_fields = {
             "user_query",
-            "csv_temp_path",
-            "data_row_count",
+            "csv_temp_paths",
+            "csv_metadata",
             "intent",
             "plan",
             "generated_code",
@@ -55,7 +55,7 @@ class TestPipelineState:
 
     def test_field_count(self):
         from pipeline.state import PipelineState
-        # 17 fields as specified in architecture and epics
+        # 17 fields (csv_temp_path/data_row_count replaced with csv_temp_paths/csv_metadata — same count)
         assert len(PipelineState.__annotations__) == 17
 
     def test_intent_field_type_hint(self):
@@ -110,12 +110,12 @@ class TestInitSessionState:
         self._state = {}
         monkeypatch.setattr(session_mod, "st", type("FakeSt", (), {"session_state": self._state})())
 
-    def test_all_nine_keys_created(self):
-        """AC #3: init_session_state() creates all 9 required keys."""
+    def test_all_required_keys_created(self):
+        """AC #3: init_session_state() creates all required keys."""
         from utils.session import init_session_state
         init_session_state()
         expected_keys = {
-            "uploaded_dfs", "csv_temp_path", "chat_history",
+            "uploaded_dfs", "csv_temp_paths", "chat_history",
             "pipeline_state", "pipeline_running", "plan_approved",
             "active_tab", "saved_templates", "active_template",
         }
@@ -128,11 +128,11 @@ class TestInitSessionState:
         init_session_state()
         assert self._state["uploaded_dfs"] == {}
 
-    def test_csv_temp_path_default(self):
-        """AC #3: csv_temp_path defaults to None."""
+    def test_csv_temp_paths_default(self):
+        """AC #3: csv_temp_paths defaults to empty dict."""
         from utils.session import init_session_state
         init_session_state()
-        assert self._state["csv_temp_path"] is None
+        assert self._state["csv_temp_paths"] == {}
 
     def test_chat_history_default(self):
         """AC #3: chat_history defaults to empty list."""

@@ -10,11 +10,14 @@ from pipeline.state import PipelineState
 from utils.error_translation import translate_error
 
 _CODEGEN_SYSTEM_PROMPT = """You are a Python data analysis code generator.
-Given an execution plan and a CSV file path, generate clean, executable Python code
+Given an execution plan and CSV file paths, generate clean, executable Python code
 that performs the analysis described in the plan.
 
 Rules:
-- Load data with pandas: df = pd.read_csv(csv_path)
+- CSV files are available in the working directory. Use their exact filenames in pd.read_csv():
+    df1 = pd.read_csv("file1.csv")
+    df2 = pd.read_csv("file2.csv")
+  When analyzing multiple files, use separate variables (df1, df2, df3).
 - Use only these imports: pandas, numpy, matplotlib, matplotlib.pyplot, math, statistics,
   datetime, collections, itertools, io, base64
 - Always set the matplotlib backend before importing pyplot:
@@ -31,7 +34,6 @@ Rules:
   where buf is a BytesIO containing the PNG bytes (use plt.savefig(buf, format='png', bbox_inches='tight'))
 - Print any written analysis or trend summary as plain text to stdout (not prefixed with CHART:)
 - Never use eval(), exec(), __import__(), open(), os.*, sys.*, subprocess.*
-- The variable csv_path is available — use it directly to load the CSV
 - Output ONLY the Python code, no markdown fences, no explanations"""
 
 
@@ -57,10 +59,22 @@ def generate_code(state: PipelineState) -> dict:
         f"{i + 1}. {step}" for i, step in enumerate(state.get("plan", []))
     )
     user_content = f"Execution plan:\n{plan_text}"
-    if state.get("csv_temp_path"):
-        user_content += f"\n\nCSV file path (use as csv_path variable): {state['csv_temp_path']}"
-    if state.get("data_row_count") is not None:
-        user_content += f"\nDataset row count: {state['data_row_count']}"
+
+    csv_temp_paths = state.get("csv_temp_paths", {})
+    if csv_temp_paths:
+        filenames = list(csv_temp_paths.keys())
+        user_content += "\n\nCSV files available in the working directory (use exact filenames):\n"
+        for fname in filenames:
+            user_content += f'- "{fname}"\n'
+        user_content += f'\nExample: df1 = pd.read_csv("{filenames[0]}")'
+        if len(filenames) > 1:
+            for i, fname in enumerate(filenames[1:], 2):
+                user_content += f', df{i} = pd.read_csv("{fname}")'
+        user_content += "\n"
+
+    csv_metadata = state.get("csv_metadata", "")
+    if csv_metadata:
+        user_content += f"\nDataset details:\n{csv_metadata}"
 
     # Retry context: include last error to guide a better attempt
     retry_count = state.get("retry_count", 0)

@@ -10,8 +10,8 @@ from typing_extensions import TypedDict
 
 class PipelineState(TypedDict):
     user_query: str
-    csv_temp_path: str           # nodes load CSV from file as needed; not passed as data
-    data_row_count: int
+    csv_temp_paths: dict         # {original_filename: abs_path_to_temp_file}
+    csv_metadata: str            # pre-formatted for LLM: "Available CSV files:\n- file.csv (60 rows): col1, col2"
     intent: Literal["report", "qa", "chat"]
     plan: list[str]
     generated_code: str

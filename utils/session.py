@@ -20,7 +20,7 @@ def init_session_state() -> None:
     """
     defaults = {
         "uploaded_dfs": {},
-        "csv_temp_path": None,
+        "csv_temp_paths": {},
         "chat_history": [],
         "pipeline_state": None,
         "pipeline_running": False,

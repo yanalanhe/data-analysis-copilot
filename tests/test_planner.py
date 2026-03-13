@@ -10,11 +10,13 @@ import pipeline.nodes.planner  # ensure module is in sys.modules before patching
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_test_state(query: str, csv_temp_path: str = "", data_row_count: int = 0) -> dict:
+def _make_test_state(query: str, csv_metadata: str = "", csv_temp_paths: dict = None) -> dict:
+    if csv_temp_paths is None:
+        csv_temp_paths = {}
     return {
         "user_query": query,
-        "csv_temp_path": csv_temp_path,
-        "data_row_count": data_row_count,
+        "csv_temp_paths": csv_temp_paths,
+        "csv_metadata": csv_metadata,
         "intent": "report",
         "plan": [],
         "generated_code": "",

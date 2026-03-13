@@ -108,11 +108,11 @@ def _combine_uploaded_dfs(uploaded_dfs: dict) -> pd.DataFrame:
 
 
 def _on_csv_upload(uploaded_files) -> None:
-    """Handle CSV file upload: populate uploaded_dfs, write temp CSV, update df.
+    """Handle CSV file upload: populate uploaded_dfs, write per-file temp files, update df.
 
     Stores each file as a DataFrame in st.session_state["uploaded_dfs"] keyed by filename.
-    Writes a combined temp CSV and sets st.session_state["csv_temp_path"].
-    Updates st.session_state.df for backward compat with run_tests() and existing pipeline.
+    Writes one temp CSV per file and sets st.session_state["csv_temp_paths"] as a dict.
+    Updates st.session_state.df to first file for backward compat with run_tests() and existing pipeline.
     Calls detect_large_data() and stores result in session state (Story 4.1).
     Skips re-processing if the uploaded file set has not changed since last call.
     """
@@ -141,35 +141,39 @@ def _on_csv_upload(uploaded_files) -> None:
 
     st.session_state["uploaded_dfs"] = new_dfs
 
-    # Combine all DataFrames into a single dataset
-    combined_df = _combine_uploaded_dfs(new_dfs)
+    # Keep st.session_state.df as first file for backward compat
+    first_df = list(new_dfs.values())[0]
+    st.session_state.df = first_df
 
-    # Keep st.session_state.df in sync for backward compat
-    st.session_state.df = combined_df
+    # Clean up previous temp paths if they exist
+    old_paths = st.session_state.get("csv_temp_paths", {})
+    for old_path in old_paths.values():
+        if old_path and os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass  # Safe to ignore — temp file may already be gone
 
-    # Clean up previous temp file if it exists
-    old_path = st.session_state.get("csv_temp_path")
-    if old_path and os.path.exists(old_path):
-        try:
-            os.remove(old_path)
-        except OSError:
-            pass  # Safe to ignore — temp file may already be gone
+    # Write one temp file per uploaded DataFrame
+    new_temp_paths = {}
+    for name, df in new_dfs.items():
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".csv", mode="w", encoding="utf-8"
+        ) as tmp:
+            df.to_csv(tmp, index=False)
+            new_temp_paths[name] = tmp.name
 
-    # Write combined DataFrame to a persistent temp file
-    with tempfile.NamedTemporaryFile(
-        delete=False, suffix=".csv", mode="w", encoding="utf-8"
-    ) as tmp:
-        combined_df.to_csv(tmp, index=False)
-        st.session_state["csv_temp_path"] = tmp.name
+    st.session_state["csv_temp_paths"] = new_temp_paths
 
     # Large data detection — runs on upload before any pipeline execution (NFR5, Story 4.1)
     combined_size_mb = sum(f.size for f in uploaded_files) / 1_048_576
-    row_count = len(combined_df)
-    is_large = detect_large_data(row_count, combined_size_mb)
+    total_rows = sum(len(df) for df in new_dfs.values())
+    is_large = detect_large_data(total_rows, combined_size_mb)
     if is_large:
         st.session_state["large_data_detected"] = True
+        file_count = len(new_dfs)
         st.session_state["large_data_message"] = (
-            f"Your dataset has {row_count:,} rows / {combined_size_mb:.1f} MB, "
+            f"Your dataset has {total_rows:,} rows across {file_count} files / {combined_size_mb:.1f} MB, "
             "which exceeds the visualization threshold."
         )
     else:
@@ -182,38 +186,51 @@ def _on_csv_upload(uploaded_files) -> None:
 # ─────────────────────────────────────────────
 
 def _apply_downsample() -> None:
-    """Apply uniform stride downsampling to the current uploaded dataset.
+    """Apply uniform stride downsampling to each uploaded file independently.
 
-    Overwrites the session temp CSV with the downsampled data.
+    Overwrites each temp CSV with its downsampled data.
     Sets recovery_applied = "downsampled" in session state.
     Called from the auto-downsample button in _execution_panel().
     """
     from utils.large_data import apply_uniform_stride
 
     uploaded_dfs = st.session_state.get("uploaded_dfs", {})
+    csv_temp_paths = st.session_state.get("csv_temp_paths", {})
     if not uploaded_dfs:
         st.warning("No uploaded dataset found. Please upload a CSV file first.")
         return
 
-    # Reconstruct combined DataFrame from original uploads
-    combined_df = _combine_uploaded_dfs(uploaded_dfs)
+    # Downsample each file independently and overwrite its temp file
+    new_temp_paths = {}
+    for name, df in uploaded_dfs.items():
+        downsampled_df = apply_uniform_stride(df)
 
-    downsampled_df = apply_uniform_stride(combined_df)
+        # Overwrite existing temp file if present
+        if name in csv_temp_paths and csv_temp_paths[name]:
+            temp_path = csv_temp_paths[name]
+            if os.path.exists(temp_path):
+                downsampled_df.to_csv(temp_path, index=False)
+                new_temp_paths[name] = temp_path
+            else:
+                # Temp file is gone; create a new one
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=".csv", mode="w", encoding="utf-8"
+                ) as tmp:
+                    downsampled_df.to_csv(tmp, index=False)
+                    new_temp_paths[name] = tmp.name
+        else:
+            # No temp file for this one yet; create one
+            with tempfile.NamedTemporaryFile(
+                delete=False, suffix=".csv", mode="w", encoding="utf-8"
+            ) as tmp:
+                downsampled_df.to_csv(tmp, index=False)
+                new_temp_paths[name] = tmp.name
 
-    # Overwrite the existing temp CSV with downsampled data
-    csv_temp_path = st.session_state.get("csv_temp_path")
-    if csv_temp_path:
-        downsampled_df.to_csv(csv_temp_path, index=False)
-    else:
-        # Fallback: create a new temp file if csv_temp_path is somehow missing
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".csv", mode="w", encoding="utf-8"
-        ) as tmp:
-            downsampled_df.to_csv(tmp, index=False)
-            st.session_state["csv_temp_path"] = tmp.name
+    st.session_state["csv_temp_paths"] = new_temp_paths
 
-    # Update df in session for backward compat with existing pipeline
-    st.session_state.df = downsampled_df
+    # Update df in session to first downsampled file for backward compat with existing pipeline
+    first_name = list(uploaded_dfs.keys())[0]
+    st.session_state.df = apply_uniform_stride(uploaded_dfs[first_name])
     st.session_state["recovery_applied"] = "downsampled"
 
 
@@ -222,11 +239,28 @@ def _apply_downsample() -> None:
 # ─────────────────────────────────────────────
 
 def _make_initial_pipeline_state(user_input: str) -> dict:
-    """Build a complete PipelineState dict with all 17 fields."""
+    """Build a complete PipelineState dict with all 18 fields.
+
+    Builds csv_metadata string from uploaded_dfs for LLM context.
+    """
+    uploaded_dfs = st.session_state.get("uploaded_dfs", {})
+    csv_temp_paths = st.session_state.get("csv_temp_paths", {})
+
+    # Build csv_metadata string for LLM context
+    metadata_lines = []
+    for name, df in uploaded_dfs.items():
+        cols = ", ".join(df.columns.tolist())
+        metadata_lines.append(f"- {name} ({len(df)} rows): {cols}")
+    csv_metadata = (
+        "Available CSV files:\n" + "\n".join(metadata_lines)
+        if metadata_lines
+        else ""
+    )
+
     return {
         "user_query": user_input,
-        "csv_temp_path": st.session_state.get("csv_temp_path") or "",
-        "data_row_count": len(st.session_state["df"]) if "df" in st.session_state else 0,
+        "csv_temp_paths": csv_temp_paths,
+        "csv_metadata": csv_metadata,
         "intent": "chat",
         "plan": [],
         "generated_code": "",
@@ -956,6 +990,7 @@ def _execution_panel() -> None:
         st.session_state["pipeline_state"] = result
         st.session_state["pipeline_running"] = False
         ps = result
+        st.rerun()  # Full rerun so tabs get updated pipeline_state with generated_code
 
     # Render report output
     if ps and ps.get("execution_success"):
@@ -1183,13 +1218,48 @@ with st.container():
                     if "df" not in st.session_state:
                         st.session_state.df = get_dataframe()
 
-            edited_df = st.data_editor(
-                st.session_state.df if "df" in st.session_state else get_dataframe(),
-                key="editable_table",
-                num_rows="dynamic",
-                on_change=handle_table_change,
-            )
-            st.session_state.df = edited_df
+            # Display data editors — tabs if >1 file, single editor otherwise
+            uploaded_dfs = st.session_state.get("uploaded_dfs", {})
+
+            if len(uploaded_dfs) > 1:
+                # Multi-file: render one tab per CSV
+                tab_labels = list(uploaded_dfs.keys())
+                tabs = st.tabs(tab_labels)
+                for tab, (name, df) in zip(tabs, uploaded_dfs.items()):
+                    with tab:
+                        edited = st.data_editor(
+                            df,
+                            key=f"editable_table_{name}",
+                            num_rows="dynamic",
+                            on_change=handle_table_change,
+                        )
+                        # Write back edits to session — keep uploaded_dfs in sync
+                        st.session_state["uploaded_dfs"][name] = edited
+                # Keep st.session_state.df as first df for backward compat
+                first_name = list(uploaded_dfs.keys())[0]
+                st.session_state.df = st.session_state["uploaded_dfs"][first_name]
+            elif len(uploaded_dfs) == 1:
+                # Single file: no tabs — same as current behavior
+                name, df = next(iter(uploaded_dfs.items()))
+                edited_df = st.data_editor(
+                    df,
+                    key="editable_table",
+                    num_rows="dynamic",
+                    on_change=handle_table_change,
+                )
+                st.session_state["uploaded_dfs"][name] = edited_df
+                st.session_state.df = edited_df
+            else:
+                # No uploads — show sample data
+                if "df" not in st.session_state:
+                    st.session_state.df = get_dataframe()
+                edited_df = st.data_editor(
+                    st.session_state.df,
+                    key="editable_table",
+                    num_rows="dynamic",
+                    on_change=handle_table_change,
+                )
+                st.session_state.df = edited_df
 
     with col2row2:
         with st.container(height=ROW_HIGHT):

@@ -31,6 +31,15 @@ from pipeline.state import PipelineState
 from utils.error_translation import translate_error
 
 
+def _sanitize_filename(name: str) -> str:
+    """Sanitize filename by stripping directory components and replacing unsafe characters."""
+    import re
+    # Take only the basename
+    basename = os.path.basename(name)
+    # Replace anything outside alphanumeric, dash, underscore, dot with underscore
+    return re.sub(r"[^\w.\-]", "_", basename)
+
+
 def _parse_stdout(stdout: str) -> tuple[list[bytes], str]:
     """Parse subprocess stdout into chart bytes and plain report text.
 
@@ -108,10 +117,12 @@ def execute_code(state: PipelineState) -> dict:
         code_path = Path(temp_dir) / "analysis.py"
         code_path.write_text(state.get("generated_code", ""), encoding="utf-8")
 
-        # Copy session CSV into temp dir so generated code can reference "data.csv"
-        csv_source = state.get("csv_temp_path")
-        if csv_source and Path(csv_source).exists():
-            shutil.copy2(csv_source, Path(temp_dir) / "data.csv")
+        # Copy all session CSVs into temp dir using sanitized original filenames
+        csv_temp_paths = state.get("csv_temp_paths") or {}
+        for original_name, source_path in csv_temp_paths.items():
+            if source_path and Path(source_path).exists():
+                safe_name = _sanitize_filename(original_name)
+                shutil.copy2(source_path, Path(temp_dir) / safe_name)
 
         # Restricted environment: only PATH and PYTHONPATH inherited (NFR10)
         # MPLCONFIGDIR and MPLBACKEND are also set so matplotlib can initialise

@@ -33,10 +33,9 @@ def generate_plan(state: PipelineState) -> dict:
         llm = ChatOpenAI(model="gpt-4o", temperature=0)
 
         content = f"User request: {state['user_query']}"
-        if state.get("csv_temp_path"):
-            content += f"\nDataset path: {state['csv_temp_path']}"
-        if state.get("data_row_count"):
-            content += f"\nDataset rows: {state['data_row_count']}"
+        csv_metadata = state.get("csv_metadata", "")
+        if csv_metadata:
+            content += f"\n\n{csv_metadata}"
 
         messages = [
             SystemMessage(content=_PLAN_SYSTEM_PROMPT),

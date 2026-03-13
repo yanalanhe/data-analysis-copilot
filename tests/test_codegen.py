@@ -14,8 +14,8 @@ def _make_state(**overrides) -> dict:
     """Return a minimal PipelineState-compatible dict for testing."""
     base = {
         "user_query": "plot sales over time",
-        "csv_temp_path": "/tmp/test.csv",
-        "data_row_count": 100,
+        "csv_temp_paths": {"test.csv": "/tmp/test.csv"},
+        "csv_metadata": "Available CSV files:\n- test.csv (100 rows): sales, date",
         "intent": "report",
         "plan": ["Load sales data", "Plot sales vs time", "Add trend line"],
         "generated_code": "",
@@ -227,8 +227,8 @@ def test_user_message_contains_plan_steps():
     assert "Plot chart" in human_msg.content
 
 
-def test_user_message_contains_csv_path():
-    """User message must include the csv_temp_path for the generated code to use."""
+def test_user_message_contains_csv_filenames():
+    """User message must include available CSV filenames for the generated code to use."""
     from langchain_core.messages import HumanMessage
 
     code = "import pandas as pd"
@@ -237,13 +237,13 @@ def test_user_message_contains_csv_path():
         mock_llm.invoke.return_value = _make_mock_response(code)
         mock_cls.return_value = mock_llm
         from pipeline.nodes.codegen import generate_code
-        generate_code(_make_state(csv_temp_path="/tmp/session_abc.csv"))
+        generate_code(_make_state(csv_temp_paths={"session_abc.csv": "/tmp/session_abc.csv"}))
 
     messages = mock_llm.invoke.call_args[0][0]
     human_msg = messages[1]
     assert isinstance(human_msg, HumanMessage)
-    assert "/tmp/session_abc.csv" in human_msg.content, (
-        "User message must include the CSV path so generated code can load data"
+    assert "session_abc.csv" in human_msg.content, (
+        "User message must include the CSV filename so generated code can load data"
     )
 
 
@@ -459,8 +459,8 @@ def test_system_prompt_contains_plt_close():
     )
 
 
-def test_data_row_count_zero_still_included():
-    """data_row_count=0 should still be included in user message (not falsy-skipped)."""
+def test_csv_temp_paths_empty_omits_filenames_from_message():
+    """When csv_temp_paths is empty, CSV filename info is omitted from user message."""
     from langchain_core.messages import HumanMessage
 
     code = "import pandas as pd"
@@ -469,33 +469,13 @@ def test_data_row_count_zero_still_included():
         mock_llm.invoke.return_value = _make_mock_response(code)
         mock_cls.return_value = mock_llm
         from pipeline.nodes.codegen import generate_code
-        generate_code(_make_state(data_row_count=0))
+        generate_code(_make_state(csv_temp_paths={}, csv_metadata=""))
 
     messages = mock_llm.invoke.call_args[0][0]
     human_msg = messages[1]
     assert isinstance(human_msg, HumanMessage)
-    assert "row count: 0" in human_msg.content.lower(), (
-        "data_row_count=0 must still be included in user message"
-    )
-
-
-def test_csv_temp_path_none_omits_path_from_message():
-    """When csv_temp_path is None, CSV path info is omitted from user message."""
-    from langchain_core.messages import HumanMessage
-
-    code = "import pandas as pd"
-    with patch("pipeline.nodes.codegen.ChatOpenAI") as mock_cls:
-        mock_llm = MagicMock()
-        mock_llm.invoke.return_value = _make_mock_response(code)
-        mock_cls.return_value = mock_llm
-        from pipeline.nodes.codegen import generate_code
-        generate_code(_make_state(csv_temp_path=None))
-
-    messages = mock_llm.invoke.call_args[0][0]
-    human_msg = messages[1]
-    assert isinstance(human_msg, HumanMessage)
-    assert "CSV file path" not in human_msg.content, (
-        "When csv_temp_path is None, CSV path info must be omitted"
+    assert "CSV files available" not in human_msg.content, (
+        "When csv_temp_paths is empty, CSV filename info must be omitted"
     )
 
 

@@ -22,8 +22,8 @@ def _make_mock_response(content: str) -> MagicMock:
 def _make_full_state(query: str) -> dict:
     return {
         "user_query": query,
-        "csv_temp_path": "",
-        "data_row_count": 0,
+        "csv_temp_paths": {},
+        "csv_metadata": "",
         "intent": "chat",
         "plan": [],
         "generated_code": "",
@@ -133,7 +133,7 @@ def test_qa_intent_does_not_generate_plan():
 # ---------------------------------------------------------------------------
 
 def test_generate_plan_includes_dataset_context():
-    """Plan generation prompt includes csv_temp_path and data_row_count when available."""
+    """Plan generation prompt includes csv_metadata when available."""
     plan_response = _make_mock_response("1. Load data\n2. Analyze")
     with patch("pipeline.nodes.planner.ChatOpenAI") as mock_cls:
         mock_llm = MagicMock()
@@ -141,10 +141,9 @@ def test_generate_plan_includes_dataset_context():
         mock_cls.return_value = mock_llm
         from pipeline.nodes.planner import generate_plan
         state = _make_full_state("plot voltage vs time")
-        state["csv_temp_path"] = "/tmp/data.csv"
-        state["data_row_count"] = 5000
+        state["csv_metadata"] = "Available CSV files:\n- data.csv (5000 rows): voltage, time"
         generate_plan(state)
     messages = mock_llm.invoke.call_args[0][0]
     human_content = messages[-1].content
-    assert "/tmp/data.csv" in human_content
+    assert "Available CSV files" in human_content
     assert "5000" in human_content
