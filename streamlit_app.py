@@ -20,7 +20,10 @@ from langsmith import traceable, Client as LangSmithClient
 from streamlit_ace import st_ace
 from openai import OpenAI
 from utils.error_translation import translate_error
+from utils.reexec import build_reexec_state
 from pipeline.graph import run_pipeline
+from pipeline.nodes.validator import validate_code_node
+from pipeline.nodes.executor import execute_code
 
 load_dotenv()
 ROW_HIGHT = 600
@@ -1042,13 +1045,53 @@ with st.container():
                     )
 
             with col2row1_code_tab:
-                st.write(session_state_auto.formatted_output)
-                st.write("### Code For Visualizing Report")
-                reporting_code = st_ace(
-                    value=st.session_state.code, language="python", theme="monokai"
+                # Code tab: editable code + manual re-execution (Story 5.2)
+                # (sync: tests/test_code_viewer.py::get_code_for_display still valid for read path)
+                ps = st.session_state.get("pipeline_state")
+                generated_code = (
+                    ps.get("generated_code", "")
+                    if isinstance(ps, dict)
+                    else ""
                 )
-                if reporting_code:
-                    st.session_state.code = reporting_code
+                if generated_code:
+                    edited_code = st_ace(
+                        value=generated_code,
+                        language="python",
+                        theme="monokai",
+                        readonly=False,
+                        height=400,
+                        key="code_editor",
+                    )
+                    # st_ace returns None on initial render before user interaction
+                    current_code = edited_code if edited_code is not None else generated_code
+
+                    if st.button("Re-run", key="rerun_code"):
+                        re_exec_state = build_reexec_state(ps, current_code)
+                        val_result = validate_code_node(re_exec_state)
+
+                        if val_result.get("validation_errors"):
+                            # Validation failed — show inline, do NOT execute (AC #4)
+                            # Clear stale report so _execution_panel doesn't show old results
+                            stale_clear = {
+                                **ps,
+                                "execution_success": False,
+                                "report_charts": [],
+                                "report_text": "",
+                                "error_messages": val_result.get("error_messages", []),
+                            }
+                            st.session_state["pipeline_state"] = stale_clear
+                            for msg in val_result.get("error_messages", []):
+                                st.error(msg)
+                        else:
+                            # Validation passed — execute directly, bypassing LLM nodes (AC #2)
+                            with st.spinner("Re-running code..."):
+                                merged_state = {**re_exec_state, **val_result}
+                                exec_result = execute_code(merged_state)
+                                final_state = {**merged_state, **exec_result}
+                            st.session_state["pipeline_state"] = final_state
+                            st.rerun()  # _execution_panel() re-renders with new results (AC #3, #5)
+                else:
+                    st.info("Run an analysis to see the generated code here")
 
             with col2row1_template_tab:
                 saved = st.session_state.get("saved_templates", [])

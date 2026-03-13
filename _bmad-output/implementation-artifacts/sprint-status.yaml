@@ -71,9 +71,9 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Code Transparency & Template System
-  epic-5: backlog
-  5-1-code-viewer-in-streamlit-ace-editor: backlog
-  5-2-editable-code-manual-re-execution: backlog
+  epic-5: in-progress
+  5-1-code-viewer-in-streamlit-ace-editor: done
+  5-2-editable-code-manual-re-execution: done
   5-3-template-save-reuse: backlog
   epic-5-retrospective: optional
 
