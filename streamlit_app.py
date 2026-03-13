@@ -21,6 +21,7 @@ from streamlit_ace import st_ace
 from openai import OpenAI
 from utils.error_translation import translate_error
 from utils.reexec import build_reexec_state
+from utils.templates import save_template, load_templates
 from pipeline.graph import run_pipeline
 from pipeline.nodes.validator import validate_code_node
 from pipeline.nodes.executor import execute_code
@@ -1037,6 +1038,47 @@ with st.container():
                     else:
                         # Approved — pipeline execution wired in Story 3.x
                         st.success("✅ Plan approved.")
+                        # Show Save as Template section after a successful run (AC #1)
+                        if isinstance(ps, dict) and ps.get("execution_success"):
+                            if not st.session_state.get("show_save_template_form", False):
+                                if st.button("Save as Template", key="save_template_btn"):
+                                    st.session_state["show_save_template_form"] = True
+                                    st.rerun()
+                            else:
+                                # Inline name-entry form — no modal (UX requirement) (AC #2)
+                                template_name = st.text_input(
+                                    "Template name", key="template_name_input", max_chars=80
+                                )
+                                col_save, col_cancel = st.columns(2)
+                                with col_save:
+                                    if st.button("Confirm Save", key="confirm_save_template"):
+                                        name = template_name.strip()
+                                        if name:
+                                            existing_names = [
+                                                t.get("name")
+                                                for t in st.session_state.get("saved_templates", [])
+                                            ]
+                                            if name in existing_names:
+                                                st.warning(f'A template named "{name}" already exists. Choose a different name.')
+                                            else:
+                                                try:
+                                                    save_template(
+                                                        name,
+                                                        ps.get("plan", []),
+                                                        ps.get("generated_code", ""),
+                                                    )
+                                                    st.session_state["saved_templates"] = load_templates()
+                                                    st.session_state["show_save_template_form"] = False
+                                                    st.toast(f'Template "{name}" saved.')
+                                                    st.rerun()
+                                                except OSError as e:
+                                                    st.error(f"Failed to save template: {e}")
+                                        else:
+                                            st.warning("Enter a name before saving.")
+                                with col_cancel:
+                                    if st.button("Cancel", key="cancel_save_template"):
+                                        st.session_state["show_save_template_form"] = False
+                                        st.rerun()
                 else:
                     # Guard is intentional: qa/chat intents never populate plan,
                     # so the Execute button is never shown for those intents (AC #4, #5)
@@ -1105,8 +1147,20 @@ with st.container():
                         if st.button(
                             "Apply", key=f"apply_tmpl_{idx}_{tmpl.get('name', '')}"
                         ):
-                            st.session_state["active_template"] = tmpl
-                            st.session_state["active_tab"] = "plan"
+                            # Load template plan and code into pipeline_state (AC #4)
+                            existing_ps = st.session_state.get("pipeline_state") or {}
+                            st.session_state["pipeline_state"] = {
+                                **existing_ps,
+                                "plan": tmpl.get("plan", []),
+                                "generated_code": tmpl.get("code", ""),
+                                "execution_success": False,
+                                "validation_errors": [],
+                                "error_messages": [],
+                                "report_charts": [],
+                                "report_text": "",
+                            }
+                            st.session_state["plan_approved"] = False
+                            st.session_state["show_save_template_form"] = False
                             st.rerun()
 
     col1row2, col2row2 = st.columns(2)

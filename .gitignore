@@ -37,4 +37,5 @@ Thumbs.db
 *.png
 .streamlit
 .aider.*
+templates.json
 

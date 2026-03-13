@@ -1,9 +1,5 @@
 # utils/templates.py
-"""Template persistence utilities — templates.json read/write.
-
-load_templates() is functional in this story.
-save_template() is stubbed for Story 5.3.
-"""
+"""Template persistence utilities — templates.json read/write."""
 import json
 import os
 from pathlib import Path
@@ -19,17 +15,22 @@ def load_templates() -> list[dict]:
     """
     if not os.path.exists(TEMPLATES_FILE):
         return []
-    with open(TEMPLATES_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(TEMPLATES_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return []
     if not isinstance(data, list):
         return []
     return data
 
 
 def save_template(name: str, plan: list[str], code: str) -> None:
-    """Save a named template (plan + code) to templates.json.
+    """Append a named template (plan + code) to templates.json.
 
-    Full implementation in Story 5.3 (template save & reuse).
+    Creates the file if it does not exist.
     """
-    # TODO: implement in Story 5.3
-    raise NotImplementedError("save_template() implemented in Story 5.3")
+    templates = load_templates()
+    templates.append({"name": name, "plan": plan, "code": code})
+    with open(TEMPLATES_FILE, "w", encoding="utf-8") as f:
+        json.dump(templates, f, indent=2, ensure_ascii=False)

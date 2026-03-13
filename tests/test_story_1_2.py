@@ -237,11 +237,11 @@ class TestLoadTemplates:
         result = tmpl_mod.load_templates()
         assert result == templates_data
 
-    def test_save_template_raises_not_implemented(self):
-        """save_template() raises NotImplementedError — implemented in Story 5.3."""
+    def test_save_template_is_callable(self):
+        """save_template() is implemented in Story 5.3 and no longer raises NotImplementedError."""
         from utils.templates import save_template
-        with pytest.raises(NotImplementedError):
-            save_template("name", ["step"], "code")
+        # Verify the function exists and is callable (full implementation tested in test_template_save_reuse.py)
+        assert callable(save_template)
 
 
 # ---------------------------------------------------------------------------

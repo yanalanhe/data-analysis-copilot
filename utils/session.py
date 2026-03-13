@@ -30,6 +30,7 @@ def init_session_state() -> None:
         "large_data_detected": False,   # Story 4.1: set True on upload when threshold exceeded
         "large_data_message": "",       # Story 4.1: human-readable message for inline warning
         "recovery_applied": "",         # Story 4.2: "" = none, "downsampled" = auto-downsampled
+        "show_save_template_form": False,  # Story 5.3: True = inline name form showing in Plan tab
     }
     for key, value in defaults.items():
         if key not in st.session_state:

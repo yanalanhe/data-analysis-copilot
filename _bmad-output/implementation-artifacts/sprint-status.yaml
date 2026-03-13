@@ -74,7 +74,7 @@ development_status:
   epic-5: in-progress
   5-1-code-viewer-in-streamlit-ace-editor: done
   5-2-editable-code-manual-re-execution: done
-  5-3-template-save-reuse: backlog
+  5-3-template-save-reuse: done
   epic-5-retrospective: optional
 
   # Epic 6: Developer Observability & Resilience
