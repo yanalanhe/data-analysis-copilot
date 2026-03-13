@@ -145,15 +145,21 @@ class TestClassifyIntentFallbacks:
             result = classify_intent(_make_test_state("hello"))
         assert result["intent"] == "chat"
 
-    def test_exception_returns_only_intent_key(self):
-        """Even on exception, must return ONLY the intent key."""
+    def test_exception_propagates_to_error_messages(self):
+        """On exception, must return intent='chat' fallback AND error_messages with translated error."""
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = RuntimeError("API down")
         with patch("pipeline.nodes.intent.ChatOpenAI") as mock_cls:
             mock_cls.return_value = mock_llm
             from pipeline.nodes.intent import classify_intent
             result = classify_intent(_make_test_state("hello"))
-        assert set(result.keys()) == {"intent"}
+        assert result["intent"] == "chat"
+        assert "error_messages" in result, (
+            "Intent node must propagate exceptions to error_messages (AC2, FR29)"
+        )
+        assert len(result["error_messages"]) > 0
+        # Error must be translated — not raw repr
+        assert "RuntimeError" not in result["error_messages"][0]
 
 
 class TestClassifyIntentNoStreamlit:

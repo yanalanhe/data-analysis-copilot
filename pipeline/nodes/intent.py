@@ -26,12 +26,12 @@ def classify_intent(state: PipelineState) -> dict:
     Returns only the changed key per LangGraph convention.
     Defaults to 'chat' on any LLM error.
     """
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    messages = [
-        SystemMessage(content=_INTENT_SYSTEM_PROMPT),
-        HumanMessage(content=state["user_query"]),
-    ]
     try:
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
+        messages = [
+            SystemMessage(content=_INTENT_SYSTEM_PROMPT),
+            HumanMessage(content=state["user_query"]),
+        ]
         response = llm.invoke(messages)
         raw = response.content.strip().lower()
         if raw in ("report", "qa", "chat"):
@@ -42,7 +42,11 @@ def classify_intent(state: PipelineState) -> dict:
             intent = "qa"
         else:
             intent = "chat"
-    except Exception:
-        intent = "chat"
-
-    return {"intent": intent}
+        return {"intent": intent}
+    except Exception as e:
+        from utils.error_translation import translate_error
+        error_msg = translate_error(e)
+        return {
+            "intent": "chat",  # safe fallback — pipeline continues
+            "error_messages": list(state.get("error_messages", [])) + [error_msg],
+        }

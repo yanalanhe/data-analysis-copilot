@@ -29,20 +29,20 @@ def generate_plan(state: PipelineState) -> dict:
 
     Returns only changed keys per LangGraph convention.
     """
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-
-    content = f"User request: {state['user_query']}"
-    if state.get("csv_temp_path"):
-        content += f"\nDataset path: {state['csv_temp_path']}"
-    if state.get("data_row_count"):
-        content += f"\nDataset rows: {state['data_row_count']}"
-
-    messages = [
-        SystemMessage(content=_PLAN_SYSTEM_PROMPT),
-        HumanMessage(content=content),
-    ]
-
     try:
+        llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+        content = f"User request: {state['user_query']}"
+        if state.get("csv_temp_path"):
+            content += f"\nDataset path: {state['csv_temp_path']}"
+        if state.get("data_row_count"):
+            content += f"\nDataset rows: {state['data_row_count']}"
+
+        messages = [
+            SystemMessage(content=_PLAN_SYSTEM_PROMPT),
+            HumanMessage(content=content),
+        ]
+
         response = llm.invoke(messages)
         raw = response.content.strip()
         steps = []
@@ -55,7 +55,11 @@ def generate_plan(state: PipelineState) -> dict:
                 steps.append(cleaned)
         if not steps:
             steps = [raw]
-    except Exception:
-        steps = ["Error generating plan. Please try again."]
-
-    return {"plan": steps}
+        return {"plan": steps}
+    except Exception as e:
+        from utils.error_translation import translate_error
+        error_msg = translate_error(e)
+        return {
+            "plan": [],
+            "error_messages": list(state.get("error_messages", [])) + [error_msg],
+        }

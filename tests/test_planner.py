@@ -95,6 +95,7 @@ def test_generate_plan_returns_only_plan_key():
 # ---------------------------------------------------------------------------
 
 def test_generate_plan_error_handling():
+    """On LLM exception, plan returns empty list and error is routed to error_messages."""
     with patch("pipeline.nodes.planner.ChatOpenAI") as mock_cls:
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = Exception("API error")
@@ -103,8 +104,16 @@ def test_generate_plan_error_handling():
         result = generate_plan(_make_test_state("create a chart"))
     assert "plan" in result
     assert isinstance(result["plan"], list)
-    assert len(result["plan"]) >= 1
-    assert "error" in result["plan"][0].lower() or "try again" in result["plan"][0].lower()
+    assert result["plan"] == [], (
+        "On error, plan must be empty — error goes to error_messages, not inline plan text"
+    )
+    assert "error_messages" in result, (
+        "Planner node must propagate exceptions to error_messages (AC2, FR29)"
+    )
+    assert len(result["error_messages"]) > 0
+    # Error must be translated — not raw repr; verify actual translated content
+    assert "Exception" not in result["error_messages"][0]
+    assert "unexpected error occurred" in result["error_messages"][0].lower()
 
 
 # ---------------------------------------------------------------------------

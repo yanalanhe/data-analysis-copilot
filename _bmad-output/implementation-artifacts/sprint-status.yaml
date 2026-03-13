@@ -78,7 +78,7 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Developer Observability & Resilience
-  epic-6: in-progress
+  epic-6: done
   6-1-langsmith-tracing-integration: done
-  6-2-llm-api-resilience-developer-error-reporting: backlog
+  6-2-llm-api-resilience-developer-error-reporting: done
   epic-6-retrospective: optional

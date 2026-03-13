@@ -38,7 +38,7 @@ which directs what to do next
 /bmad-bmm-create-product-brife
 ```
 
-Note: Answer questions raised from running the above c0mmand
+Note: Answer questions raised from running the above command
 
 What are your product vision, target users, success metrics, and scope. 
 

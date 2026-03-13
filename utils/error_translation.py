@@ -23,8 +23,9 @@ class AllowlistViolationError(Exception):
 def translate_error(exception: Exception) -> str:
     """Translate an exception to a user-friendly plain-English message.
 
-    Check order matters: openai.RateLimitError MUST be checked before openai.APIError
-    because RateLimitError is a subclass of APIError.
+    Check order matters: AuthenticationError → RateLimitError → APIError (most
+    specific first). All three are subclasses of APIError; if APIError is checked
+    first it swallows the more specific matches.
     """
     try:
         return _translate_error_inner(exception)
@@ -38,6 +39,10 @@ def _translate_error_inner(exception: Exception) -> str:
     # Guard: openai may not be installed in test environments
     try:
         import openai
+        # AuthenticationError (HTTP 401) MUST be checked before APIError because it is
+        # a subclass of APIError — most specific first.
+        if isinstance(exception, openai.AuthenticationError):
+            return "Add OPENAI_API_KEY to your .env file"
         if isinstance(exception, openai.RateLimitError):
             return "AI service rate limit reached. Please wait a moment and try again."
         if isinstance(exception, openai.APIError):
