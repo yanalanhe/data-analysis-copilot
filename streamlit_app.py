@@ -1048,44 +1048,18 @@ st.title("🔌 Circuit Board Data Analysis Tool")
 
 # Usage Section
 with st.expander("📖 Usage Examples", expanded=False):
-    st.warning("⚠️ **Important:** You must upload the related CSV files to the 'User Data Set' section before using these examples.")
     st.markdown("""
-    **1. Diagnose Machine Event (3-Step Analysis)**
     ```
-    Diagnose one machine event using three synchronized CSVs from the same time window.
-    In CSV1("chart1_tracking_command_response.csv"), compare Command(command_pct) vs Response(response_pct).
-    If Response deviates >±5% during transitions, flag tracking failure.
-    If tracking fails, check CSV2(chart2_power_supply_output.csv): compare Supply Voltage(supply_v) vs Output(output_rpm);
-    If Output weakens, drops, or gets noisy when Voltage dips, classify power-related failure.
-    If not, check CSV3(chart3_mode_sensor_mismatch.csv): compare Sensor1(sensor2_pct) vs Sensor2(sensor2_pct);
-    If they diverge mainly in one mode/event window, classify mode-specific sensor mismatch.
-    Output format: Step 1 finding; Step 2 finding; Step 3 finding; Final fault type;
-    Root-cause hypothesis;
-    Recommended next check.
-    Include three charts in the output report: one for each step (CSV1, CSV2, CSV3).
-    ```
-
-    **2. Analyze Command vs Response Tracking**
-    ```
-    Analyze uploaded "chart1_tracking_command_response.csv".
-    Compare Command(command_pct) vs Response(response_pct).
-    Pass if Response stays within ±5% of Command; fail if it overshoots, undershoots, or exceeds ±5%.
-    Output: Pass/Fail; For each Pass/Fail, display total count and its percentage; key timestamps; conclusion. Include one chart.
-    ```
-
-    **3. Check Power Supply Stability**
-    ```
-    Checks whether the problem is related to power instability.
-    If Supply Voltage(supply_v) drops and Output(output_rpm) weakens, drops, or gets noisy at the same time, the issue may be power-related.
-    If Output remains stable despite normal voltage variation, there is no strong evidence of power failure
-    ```
-
-    **4. Analyze Sensor Mismatch Behavior**
-    ```
-    Analyze uploaded "chart3_mode_sensor_mismatch.csv".
-    Checks whether the issue is a sensor mismatch during a special mode.
-    If Sensor1(sensor1_pct) and Sensor2(sensor2_pct) agree during normal operation but diverge mainly in one mode or event window, the issue may be mode-specific
-    If disagreement exists across the full capture, it is persistent sensor disagreement
+    1. Generate a scatter plot for columns A vs B.
+    2. Generate a scatter plot for columns A vs C.
+    3. Label the axes and the title of each scatter plot for clear understanding.
+    4. Plot python_mpl.tool_how, way to make scatter plot.
+    5. Observe the relationship between A and B.
+    6. Observe the relationship between A and C.
+    7. Draw conclusions about these relationships based on the scatter plots.
+    8. Present conclusions about the scatter plots.
+    9. Present conclusions about the relationships between columns A, B, and C.
+    10. Include the scatter plots in the report to support your conclusions.
     ```
     """)
 
@@ -1233,10 +1207,56 @@ with st.container():
                     st.info("Run an analysis to see the generated code here")
 
             with col2row1_template_tab:
+                ps = st.session_state.get("pipeline_state")
+
+                # Save controls — shown when execution succeeded
+                if isinstance(ps, dict) and ps.get("execution_success"):
+                    st.write("#### Save Current Analysis as Template")
+                    if not st.session_state.get("show_save_template_form", False):
+                        if st.button("Save as Template", key="save_template_btn_tab"):
+                            st.session_state["show_save_template_form"] = True
+                            st.rerun()
+                    else:
+                        template_name = st.text_input(
+                            "Template name", key="template_name_input_tab", max_chars=80
+                        )
+                        col_save, col_cancel = st.columns(2)
+                        with col_save:
+                            if st.button("Confirm Save", key="confirm_save_template_tab"):
+                                name = template_name.strip()
+                                if name:
+                                    existing_names = [
+                                        t.get("name")
+                                        for t in st.session_state.get("saved_templates", [])
+                                    ]
+                                    if name in existing_names:
+                                        st.warning(f'A template named "{name}" already exists. Choose a different name.')
+                                    else:
+                                        try:
+                                            save_template(
+                                                name,
+                                                ps.get("plan", []),
+                                                ps.get("generated_code", ""),
+                                            )
+                                            st.session_state["saved_templates"] = load_templates()
+                                            st.session_state["show_save_template_form"] = False
+                                            st.toast(f'Template "{name}" saved.')
+                                            st.rerun()
+                                        except OSError as e:
+                                            st.error(f"Failed to save template: {e}")
+                                else:
+                                    st.warning("Enter a name before saving.")
+                        with col_cancel:
+                            if st.button("Cancel", key="cancel_save_template_tab"):
+                                st.session_state["show_save_template_form"] = False
+                                st.rerun()
+                    st.divider()
+
+                # Saved templates list
                 saved = st.session_state.get("saved_templates", [])
                 if not saved:
                     st.info(
-                        "No saved templates yet. Run an analysis and save it from the Plan tab."
+                        "No saved templates yet. Run an analysis and use the Save button above."
                     )
                 else:
                     for idx, tmpl in enumerate(saved):
