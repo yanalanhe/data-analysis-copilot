@@ -242,9 +242,28 @@ def _make_initial_pipeline_state(user_input: str) -> dict:
     """Build a complete PipelineState dict with all 18 fields.
 
     Builds csv_metadata string from uploaded_dfs for LLM context.
+    When no CSV is uploaded, the default sample dataset is written to a temp
+    file so the pipeline can reference it by filename in generated code.
     """
+    import tempfile
+    from pathlib import Path
+
     uploaded_dfs = st.session_state.get("uploaded_dfs", {})
     csv_temp_paths = st.session_state.get("csv_temp_paths", {})
+
+    # No uploaded files — expose the default/sample dataframe to the pipeline
+    if not csv_temp_paths and "df" in st.session_state:
+        default_path = st.session_state.get("_default_csv_temp_path")
+        if not default_path or not Path(default_path).exists():
+            tmp = tempfile.NamedTemporaryFile(
+                delete=False, suffix=".csv", prefix="sample_data_"
+            )
+            st.session_state.df.to_csv(tmp.name, index=False)
+            tmp.close()
+            st.session_state["_default_csv_temp_path"] = tmp.name
+            default_path = tmp.name
+        csv_temp_paths = {"dataset.csv": default_path}
+        uploaded_dfs = {"dataset.csv": st.session_state.df}
 
     # Build csv_metadata string for LLM context
     metadata_lines = []
