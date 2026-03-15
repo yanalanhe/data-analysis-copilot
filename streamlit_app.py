@@ -962,7 +962,7 @@ def _execution_panel() -> None:
       stores result in session_state, resets pipeline_running.
     - Always renders the current report output (charts + text) or a placeholder.
     """
-    st.write("### AI Generated Report")
+    st.write("### Conclusions")
 
     # Story 4.1 + 4.2: Inline large data warning with recovery options (no modal, FR27, FR28)
     large_data = st.session_state.get("large_data_detected", False)
@@ -1018,7 +1018,8 @@ def _execution_panel() -> None:
             st.image(chart_bytes)
         report_text = ps.get("report_text", "")
         if report_text:
-            st.markdown(report_text)
+            lines = [l.strip() for l in report_text.splitlines() if l.strip()]
+            st.markdown("\n".join(f"- {line}" for line in lines))
         if not charts and not report_text:
             st.info("Analysis complete. No chart output was produced.")
     elif ps and ps.get("error_messages"):
