@@ -33,6 +33,12 @@ Rules:
 - Output each chart as: print("CHART:" + base64.b64encode(buf.getvalue()).decode())
   where buf is a BytesIO containing the PNG bytes (use plt.savefig(buf, format='png', bbox_inches='tight'))
 - Print any written analysis or trend summary as plain text to stdout (not prefixed with CHART:)
+- CRITICAL: All printed text must contain real computed values and actual conclusions derived from the data.
+  NEVER print placeholder or template text such as "[describe pattern]", "[provide interpretation]",
+  "[e.g., ...]", or any bracket-enclosed instructions. Compute correlation, slope direction, or
+  descriptive statistics from the data and state the finding directly.
+  Example of WRONG output: "There is a [linear/non-linear] relationship between A and B."
+  Example of CORRECT output: "There is a strong positive linear relationship between A and B (r=0.99)."
 - Never use eval(), exec(), __import__(), open(), os.*, sys.*, subprocess.*
 - Output ONLY the Python code, no markdown fences, no explanations"""
 
