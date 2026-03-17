@@ -11,7 +11,7 @@ inputDocuments:
 
 # UX Design Specification data-analysis-copilot
 
-**Author:** Ti
+**Author:** Yan
 **Date:** 2026-03-08
 
 ---

@@ -10,7 +10,7 @@ lastStep: 8
 status: 'complete'
 completedAt: '2026-03-08'
 project_name: 'data-analysis-copilot'
-user_name: 'Ti'
+user_name: 'Yan'
 date: '2026-03-08'
 ---
 

@@ -2,7 +2,7 @@
 stepsCompleted: [step-01-init, step-02-vision, step-03-users, step-04-metrics, step-05-scope, step-06-complete]
 inputDocuments: []
 date: 2026-03-05
-author: Ti
+author: Yan
 ---
 
 # Product Brief: data-analysis-copilot

@@ -390,7 +390,7 @@ claude-sonnet-4-6
 
 ### Senior Developer Review (AI)
 
-**Reviewer:** Ti (AI-assisted) | **Date:** 2026-03-12 | **Outcome:** Changes Requested (2 HIGH fixed, deferred items remain)
+**Reviewer:** Yan (AI-assisted) | **Date:** 2026-03-12 | **Outcome:** Changes Requested (2 HIGH fixed, deferred items remain)
 
 **Fixes Applied:**
 - [x] [AI-Review][HIGH] Added explicit rendering branch for `execution_success=False` with empty `error_messages` — prevents misleading "Run an analysis" placeholder after failed pipelines

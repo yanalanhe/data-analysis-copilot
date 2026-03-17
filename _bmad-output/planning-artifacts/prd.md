@@ -15,7 +15,7 @@ classification:
 
 # Product Requirements Document - data-analysis-copilot
 
-**Author:** Ti
+**Author:** Yan
 **Date:** 2026-03-05
 
 ## Executive Summary
