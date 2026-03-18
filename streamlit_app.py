@@ -119,7 +119,16 @@ def _execution_panel() -> None:
     @st.fragment isolates reruns to this panel only — the chat panel and tabs
     remain interactive during pipeline execution (NFR4).
     """
+    st.markdown('<div id="conclusions-section"></div>', unsafe_allow_html=True)
     st.write("### Conclusions")
+
+    if st.session_state.pop("scroll_to_conclusions", False):
+        st.components.v1.html(
+            "<script>window.parent.document.getElementById('conclusions-section')"
+            ".scrollIntoView({behavior:'smooth'});</script>",
+            height=0,
+        )
+
 
     # Story 4.1 + 4.2: Inline large data warning with recovery options (no modal, FR27, FR28)
     large_data = st.session_state.get("large_data_detected", False)
@@ -198,6 +207,8 @@ def _execution_panel() -> None:
 
 st.set_page_config(layout="wide")
 
+st.markdown("<style>div.block-container{padding-top:1rem;}</style>", unsafe_allow_html=True)
+
 st.title("🔌 Circuit Board Data Analysis Tool")
 
 with st.expander("📖 Usage Examples", expanded=False):
@@ -259,6 +270,7 @@ with st.container():
                         if st.button("Execute Plan"):
                             st.session_state["plan_approved"] = True
                             st.session_state["pipeline_running"] = True
+                            st.session_state["scroll_to_conclusions"] = True
                             st.rerun()
                     else:
                         st.success("✅ Plan approved.")
